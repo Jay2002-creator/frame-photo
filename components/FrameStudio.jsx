@@ -911,7 +911,6 @@
    // ── Inline styles ──────────────────────────────────────────────────────
    const S = {
      root: {
-       fontFamily: "'Outfit',sans-serif",
        background: "#1a1714",
        color: "#f0e8d8",
        height: "100vh",
@@ -1145,7 +1144,6 @@
                style={{
                  fontSize: 16,
                  fontWeight: 600,
-                 fontFamily: "'Cormorant Garamond',serif",
                }}
              >
                Dhara Frame
@@ -1562,7 +1560,6 @@
                    fontSize: 26,
                    marginBottom: 5,
                    color: "#8a7d6e",
-                   fontFamily: "'Cormorant Garamond',serif",
                  }}
                >
                  Your canvas awaits

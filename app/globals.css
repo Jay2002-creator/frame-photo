@@ -28,3 +28,38 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
  
+/* 🌐 Apply to entire website */
+* {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+/* Chrome, Edge, Safari */
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+/* Track (background) */
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Thumb (glass effect) */
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Hover effect */
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Active (clicking) */
+*::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 255, 255, 0.4);
+}
