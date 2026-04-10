@@ -1,321 +1,434 @@
 "use client";
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
-import { 
-  Upload, 
-  Download, 
-  Maximize, 
-  Square, 
-  RectangleVertical, 
-  RectangleHorizontal, 
-  Image as ImageIcon,
-  ZoomIn,
-  Menu,
-  X,
-  Eye
+import {
+  Upload, Download, Square, RectangleVertical, RectangleHorizontal,
+  Image as ImageIcon, ZoomIn, Menu, X, Sparkles, CheckCircle2, Maximize,
 } from "lucide-react";
 
-// --- Helper Functions ---
-const getCroppedImg = (imageSrc, cropPixels) => {
-  return new Promise((resolve) => {
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const T = {
+  bg:          "linear-gradient(135deg, #dfe9ff 0%, #eef2ff 40%, #f5f0ff 70%, #e0f7ff 100%)",
+  glass:       "rgba(255,255,255,0.58)",
+  glassBorder: "1.5px solid rgba(255,255,255,0.9)",
+  glassBlur:   "blur(28px) saturate(180%)",
+  shadowGlass: "0 8px 32px rgba(100,120,220,0.13), 0 1.5px 6px rgba(100,120,220,0.07)",
+  shadowDeep:  "0 24px 64px rgba(80,100,200,0.2)",
+  accent:      "#5b6ef5",
+  accent2:     "#a78bfa",
+  text:        "#1a1d3a",
+  textMid:     "#5a5f80",
+  textSoft:    "#9196b8",
+  radius:      20,
+  radiusSm:    12,
+  fontDisplay: "'Playfair Display', Georgia, serif",
+  fontBody:    "'DM Sans', system-ui, sans-serif",
+};
+
+const getCroppedImg = (imageSrc, cropPixels) =>
+  new Promise((resolve) => {
     const image = new Image();
     image.src = imageSrc;
     image.onload = () => {
       const canvas = document.createElement("canvas");
       canvas.width = cropPixels.width;
       canvas.height = cropPixels.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(
+      canvas.getContext("2d").drawImage(
         image,
-        cropPixels.x,
-        cropPixels.y,
-        cropPixels.width,
-        cropPixels.height,
-        0,
-        0,
-        cropPixels.width,
-        cropPixels.height
+        cropPixels.x, cropPixels.y, cropPixels.width, cropPixels.height,
+        0, 0, cropPixels.width, cropPixels.height
       );
       resolve(canvas.toDataURL("image/png"));
     };
   });
-};
+
+const glassPanel = (extra = {}) => ({
+  background: T.glass,
+  border: T.glassBorder,
+  backdropFilter: T.glassBlur,
+  WebkitBackdropFilter: T.glassBlur,
+  boxShadow: T.shadowGlass,
+  ...extra,
+});
+
+const SectionLabel = ({ children }) => (
+  <div style={{
+    fontSize: 10, fontWeight: 700, letterSpacing: "0.18em",
+    textTransform: "uppercase", color: T.textSoft,
+    marginBottom: 10, display: "flex", alignItems: "center", gap: 6,
+    fontFamily: T.fontBody,
+  }}>
+    {children}
+  </div>
+);
 
 const FrameEditor = () => {
-  const [image, setImage] = useState(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
+  const [image, setImage]                         = useState(null);
+  const [crop, setCrop]                           = useState({ x: 0, y: 0 });
+  const [zoom, setZoom]                           = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [frame, setFrame] = useState("/image/frame1.png");
-  const [ratio, setRatio] = useState("square");
-  const [showSidebar, setShowSidebar] = useState(false);
-  
-  // New States for Preview Logic
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [finalPreviewUrl, setFinalPreviewUrl] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [frame, setFrame]                         = useState("/image/frame1.png");
+  const [ratio, setRatio]                         = useState("square");
+  const [showSidebar, setShowSidebar]             = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen]         = useState(false);
+  const [finalPreviewUrl, setFinalPreviewUrl]     = useState(null);
+  const [isProcessing, setIsProcessing]           = useState(false);
+  const [hoverRatio, setHoverRatio]               = useState(null);
+  const [hoverFrame, setHoverFrame]               = useState(null);
 
-  const FRAME_PADDING = 20;
-  
   const RATIOS = {
-    square: { aspect: 1, icon: <Square size={18} />, label: "Square" },
-    portrait: { aspect: 4 / 5, icon: <RectangleVertical size={18} />, label: "Portrait" },
-    landscape: { aspect: 3 / 2, icon: <RectangleHorizontal size={18} />, label: "Landscape" },
+    square:    { aspect: 1,   icon: <Square size={15}/>,             label: "Square 1:1"    },
+    portrait:  { aspect: 4/5, icon: <RectangleVertical size={15}/>,  label: "Portrait 4:5"  },
+    landscape: { aspect: 3/2, icon: <RectangleHorizontal size={15}/>,label: "Landscape 3:2" },
   };
+  const FRAMES = ["frame.png", "frame1.png", "frame2.png"];
 
   const handleUpload = (e) => {
     const file = e.target.files[0];
     if (file) setImage(URL.createObjectURL(file));
   };
+  const onCropComplete = useCallback((_, px) => setCroppedAreaPixels(px), []);
 
-  const onCropComplete = useCallback((_, croppedPixels) => {
-    setCroppedAreaPixels(croppedPixels);
-  }, []);
-
-  // --- Generate the Preview / Processing Logic ---
   const generateFinalImage = async () => {
     if (!croppedAreaPixels) return;
     setIsProcessing(true);
-
-    const croppedImage = await getCroppedImg(image, croppedAreaPixels);
-    const canvas = document.createElement("canvas");
-    
-    const exportW = ratio === "landscape" ? 1200 : 800;
-    const exportH = exportW / RATIOS[ratio].aspect;
-    
-    canvas.width = exportW;
-    canvas.height = exportH;
-    const ctx = canvas.getContext("2d");
-
-    const img = new Image();
-    img.src = croppedImage;
-    const frameImg = new Image();
-    frameImg.src = frame;
-
-    await Promise.all([
-      new Promise((res) => (img.onload = res)),
-      new Promise((res) => (frameImg.onload = res)),
-    ]);
-
-    const dynamicPadding = (FRAME_PADDING / 400) * exportW;
-    const innerWidth = exportW - dynamicPadding * 2;
-    const innerHeight = exportH - dynamicPadding * 2;
-    
-    ctx.drawImage(img, dynamicPadding, dynamicPadding, innerWidth, innerHeight);
+    const cropped  = await getCroppedImg(image, croppedAreaPixels);
+    const exportW  = ratio === "landscape" ? 1200 : 800;
+    const exportH  = exportW / RATIOS[ratio].aspect;
+    const canvas   = document.createElement("canvas");
+    canvas.width   = exportW; canvas.height = exportH;
+    const ctx      = canvas.getContext("2d");
+    const img      = new Image(); img.src = cropped;
+    const frameImg = new Image(); frameImg.src = frame;
+    await Promise.all([new Promise(r => img.onload = r), new Promise(r => frameImg.onload = r)]);
+    const pad = (20 / 400) * exportW;
+    ctx.drawImage(img, pad, pad, exportW - pad*2, exportH - pad*2);
     ctx.drawImage(frameImg, 0, 0, exportW, exportH);
-
-    const dataUrl = canvas.toDataURL("image/png");
-    setFinalPreviewUrl(dataUrl);
+    setFinalPreviewUrl(canvas.toDataURL("image/png"));
     setIsPreviewOpen(true);
     setIsProcessing(false);
   };
 
   const downloadImage = () => {
-    const link = document.createElement("a");
-    link.href = finalPreviewUrl;
-    link.download = `art-frame-${Date.now()}.png`;
-    link.click();
+    const a = document.createElement("a");
+    a.href = finalPreviewUrl;
+    a.download = `dhara-frame-${Date.now()}.png`;
+    a.click();
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen bg-[#F8F9FA] text-slate-800 font-sans overflow-hidden">
-      
-      {/* MOBILE HEADER */}
-      <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-slate-200">
-        <h1 className="text-lg font-bold">Studio Editor</h1>
-        <button onClick={() => setShowSidebar(!showSidebar)} className="p-2 bg-slate-100 rounded-lg">
-          <Menu size={20} />
-        </button>
-      </div>
+    <>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" />
+      <style>{`
+        .df-range{-webkit-appearance:none;appearance:none;flex:1;height:4px;background:linear-gradient(to right,#5b6ef5,#a78bfa);border-radius:99px;outline:none;cursor:pointer}
+        .df-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;background:white;border:2.5px solid #5b6ef5;border-radius:50%;box-shadow:0 2px 8px rgba(91,110,245,.3)}
+        @keyframes df-spin{to{transform:rotate(360deg)}}
+        .df-spinner{width:17px;height:17px;border:2.5px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:df-spin .7s linear infinite}
+      `}</style>
 
-      {/* LEFT SIDEBAR */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 p-6 transform transition-transform duration-300 lg:relative lg:translate-x-0
-        ${showSidebar ? "translate-x-0" : "-translate-x-full"}
-      `}>
-        <div className="hidden lg:block mb-8">
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">Studio Editor</h1>
-          <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest font-semibold text-[10px]">Frame Workshop</p>
+      {/* ROOT — inline background so Tailwind/globals.css can never win */}
+      <div style={{
+        fontFamily: T.fontBody,
+        background: T.bg,
+        color: T.text,
+        height: "100vh",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        position: "relative",
+        boxSizing: "border-box",
+      }}>
+
+        {/* Blobs */}
+        {[
+          { w:500, h:500, bg:"radial-gradient(circle,#a5b4fc,#818cf8)", top:"-120px", left:"-150px" },
+          { w:400, h:400, bg:"radial-gradient(circle,#bae6fd,#7dd3fc)", bottom:"-100px", right:"-100px" },
+          { w:320, h:320, bg:"radial-gradient(circle,#f9a8d4,#fda4af)", top:"38%", left:"33%" },
+        ].map((b, i) => (
+          <div key={i} style={{
+            position:"fixed", width:b.w, height:b.h, borderRadius:"50%",
+            background:b.bg, filter:"blur(80px)", opacity:0.3,
+            pointerEvents:"none", zIndex:0,
+            top:b.top, left:b.left, bottom:b.bottom, right:b.right,
+          }} />
+        ))}
+
+        {/* Mobile Header */}
+        <div style={{
+          ...glassPanel(),
+          display:"flex", alignItems:"center", justifyContent:"space-between",
+          padding:"13px 20px", position:"relative", zIndex:2, flexShrink:0,
+        }}>
+          <div>
+            <div style={{ fontFamily:T.fontDisplay, fontSize:"1.15rem", fontWeight:700, color:T.text }}>Dhara Frames</div>
+            <div style={{ fontSize:9, letterSpacing:"0.22em", textTransform:"uppercase", color:T.accent, fontWeight:700, marginTop:2 }}>Frame Workshop</div>
+          </div>
+          <button onClick={() => setShowSidebar(!showSidebar)} style={{
+            background:"rgba(255,255,255,0.5)", border:T.glassBorder,
+            backdropFilter:T.glassBlur, WebkitBackdropFilter:T.glassBlur,
+            borderRadius:10, padding:8, cursor:"pointer", color:T.text,
+            display:"flex", alignItems:"center",
+          }}>
+            {showSidebar ? <X size={20}/> : <Menu size={20}/>}
+          </button>
         </div>
 
-        <div className="flex flex-col gap-8">
-          <div className="space-y-3">
-            <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <Upload size={16} /> Upload Artwork
-            </label>
-            <div className="group relative border-2 border-dashed border-slate-200 rounded-xl p-6 transition-all hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer text-center">
-              <input type="file" accept="image/*" onChange={handleUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-              <ImageIcon className="text-slate-400 mx-auto mb-2 group-hover:text-blue-500" size={24} />
-              <span className="text-xs text-slate-500">Click to browse</span>
-            </div>
-          </div>
+        {/* Inner */}
+        <div style={{ display:"flex", flex:1, overflow:"hidden", position:"relative", zIndex:1 }}>
 
-          <div className="space-y-3">
-            <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <Maximize size={16} /> Aspect Ratio
-            </label>
-            <div className="grid grid-cols-1 gap-2">
-              {Object.entries(RATIOS).map(([key, value]) => (
-                <button
-                  key={key}
-                  onClick={() => { setRatio(key); setShowSidebar(false); }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-all ${
-                    ratio === key ? "bg-slate-900 text-white shadow-md" : "bg-slate-50 text-slate-600 hover:bg-slate-100"
-                  }`}
+          {/* Mobile overlay */}
+          {showSidebar && (
+            <div onClick={() => setShowSidebar(false)} style={{
+              position:"fixed", inset:0, background:"rgba(15,20,60,0.3)",
+              backdropFilter:"blur(4px)", zIndex:40,
+            }}/>
+          )}
+
+          {/* Left Sidebar */}
+          <aside style={{
+            ...glassPanel({
+              width:272, flexShrink:0,
+              padding:"28px 22px",
+              display:"flex", flexDirection:"column", gap:26,
+              overflowY:"auto",
+              borderRight:T.glassBorder,
+              boxSizing:"border-box",
+            }),
+            // responsive: on small screens slide in/out
+            position: typeof window !== "undefined" && window.innerWidth < 1024 ? "fixed" : "relative",
+            top:0, bottom:0, left:0, zIndex:50,
+            transform: typeof window !== "undefined" && window.innerWidth < 1024 && !showSidebar
+              ? "translateX(-100%)" : "translateX(0)",
+            transition:"transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+          }}>
+            <div>
+              <h1 style={{ fontFamily:T.fontDisplay, fontSize:"1.4rem", fontWeight:700, color:T.text, letterSpacing:"-0.01em", margin:0, lineHeight:1.2 }}>
+                Dhara Frames
+              </h1>
+              <span style={{ fontFamily:T.fontBody, fontSize:9, letterSpacing:"0.22em", textTransform:"uppercase", color:T.accent, fontWeight:700, marginTop:4, display:"block" }}>
+                Frame Workshop
+              </span>
+            </div>
+
+            {/* Upload */}
+            <div>
+              <SectionLabel><Upload size={11}/> Upload Artwork</SectionLabel>
+              <div style={{
+                position:"relative", border:`2px dashed rgba(91,110,245,0.28)`,
+                borderRadius:T.radiusSm, padding:"22px 12px", textAlign:"center",
+                cursor:"pointer", background:"rgba(91,110,245,0.03)", boxSizing:"border-box",
+              }}>
+                <input type="file" accept="image/*" onChange={handleUpload}
+                  style={{ position:"absolute", inset:0, opacity:0, cursor:"pointer", width:"100%", height:"100%" }}/>
+                <div style={{ width:38, height:38, background:`linear-gradient(135deg,${T.accent},${T.accent2})`, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 9px", color:"white" }}>
+                  <Upload size={17} color="white"/>
+                </div>
+                <p style={{ fontSize:13, color:T.textMid, fontWeight:500, margin:0 }}>Click to browse</p>
+                <p style={{ fontSize:11, color:T.textSoft, margin:"3px 0 0" }}>PNG · JPG · WEBP</p>
+              </div>
+            </div>
+
+            {/* Ratio */}
+            <div>
+              <SectionLabel><Maximize size={11}/> Aspect Ratio</SectionLabel>
+              <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+                {Object.entries(RATIOS).map(([key, val]) => {
+                  const active = ratio === key;
+                  const hov = hoverRatio === key;
+                  return (
+                    <button key={key}
+                      style={{
+                        display:"flex", alignItems:"center", gap:10,
+                        padding:"11px 15px", borderRadius:T.radiusSm,
+                        border: active ? "none" : `1.5px solid ${hov ? "rgba(91,110,245,0.25)" : "transparent"}`,
+                        fontFamily:T.fontBody, fontSize:13, fontWeight:500,
+                        cursor:"pointer", width:"100%", textAlign:"left",
+                        background: active ? `linear-gradient(135deg,${T.accent},${T.accent2})` : hov ? "rgba(91,110,245,0.08)" : "rgba(255,255,255,0.5)",
+                        color: active ? "white" : hov ? T.accent : T.textMid,
+                        boxShadow: active ? "0 4px 16px rgba(91,110,245,0.35)" : "none",
+                        transition:"all 0.18s",
+                      }}
+                      onMouseEnter={() => setHoverRatio(key)}
+                      onMouseLeave={() => setHoverRatio(null)}
+                      onClick={() => { setRatio(key); setShowSidebar(false); }}
+                    >
+                      {val.icon} {val.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </aside>
+
+          {/* Main */}
+          <main style={{
+            flex:1, display:"flex", flexDirection:"column",
+            alignItems:"center", justifyContent:"center",
+            padding:"28px 20px", overflowY:"auto", gap:20,
+          }}>
+            {!image ? (
+              <div style={{ textAlign:"center", opacity:0.45 }}>
+                <ImageIcon size={50} color="#a5b4fc"/>
+                <p style={{ marginTop:12, fontSize:15, fontWeight:500, color:T.textMid, fontFamily:T.fontBody }}>
+                  Upload an artwork to get started
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Cropper */}
+                <div style={{
+                  width:"100%", maxWidth:540,
+                  aspectRatio: String(RATIOS[ratio].aspect),
+                  maxHeight:"clamp(260px, 52vh, 500px)",
+                  borderRadius:T.radius, overflow:"hidden",
+                  boxShadow:T.shadowDeep,
+                  position:"relative", background:"#fff", flexShrink:0,
+                }}>
+                  <div style={{ position:"absolute", top:"5%", left:"5%", right:"5%", bottom:"5%" }}>
+                    <Cropper
+                      image={image} crop={crop} zoom={zoom}
+                      aspect={RATIOS[ratio].aspect}
+                      onCropChange={setCrop} onZoomChange={setZoom}
+                      onCropComplete={onCropComplete}
+                    />
+                  </div>
+                  <img src={frame} alt="Frame overlay" style={{
+                    position:"absolute", inset:0, width:"100%", height:"100%",
+                    objectFit:"fill", pointerEvents:"none", zIndex:10,
+                  }}/>
+                </div>
+
+                {/* Controls */}
+                <div style={{
+                  ...glassPanel({ borderRadius:T.radius, padding:"18px 22px", boxSizing:"border-box" }),
+                  width:"100%", maxWidth:540,
+                }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
+                    <ZoomIn size={16} color={T.textSoft}/>
+                    <input className="df-range" type="range" min={1} max={3} step={0.01} value={zoom}
+                      onChange={e => setZoom(Number(e.target.value))} style={{ flex:1 }}/>
+                    <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.08em", textTransform:"uppercase", color:T.textSoft, minWidth:34, textAlign:"right", fontFamily:T.fontBody }}>
+                      {Math.round(zoom * 100)}%
+                    </span>
+                  </div>
+                  <button
+                    disabled={isProcessing}
+                    onClick={generateFinalImage}
+                    style={{
+                      width:"100%", padding:"13px 0",
+                      background: isProcessing ? "#c4c8f8" : `linear-gradient(135deg,${T.accent},${T.accent2})`,
+                      color:"white", border:"none", borderRadius:T.radiusSm,
+                      fontFamily:T.fontBody, fontSize:14, fontWeight:700,
+                      cursor: isProcessing ? "not-allowed" : "pointer",
+                      display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                      boxShadow: isProcessing ? "none" : "0 8px 24px rgba(91,110,245,0.38)",
+                    }}
+                  >
+                    {isProcessing
+                      ? <><div className="df-spinner"/> Generating…</>
+                      : <><Sparkles size={16}/> Preview Framed Result</>
+                    }
+                  </button>
+                </div>
+              </>
+            )}
+          </main>
+
+          {/* Right Sidebar */}
+          <aside style={{
+            ...glassPanel({
+              width:180, flexShrink:0,
+              padding:"22px 14px",
+              borderLeft:T.glassBorder,
+              display:"flex", flexDirection:"column", gap:10,
+              overflowY:"auto", boxSizing:"border-box",
+            }),
+          }}>
+            <SectionLabel>Frames</SectionLabel>
+            {FRAMES.map((f, i) => {
+              const active = frame.includes(f);
+              const hov    = hoverFrame === i;
+              return (
+                <button key={i}
+                  onClick={() => setFrame(`/image/${f}`)}
+                  onMouseEnter={() => setHoverFrame(i)}
+                  onMouseLeave={() => setHoverFrame(null)}
+                  style={{
+                    width:"100%", aspectRatio:"1",
+                    borderRadius:14, overflow:"hidden",
+                    border:`2px solid ${active ? T.accent : hov ? T.accent2 : "rgba(200,210,255,0.4)"}`,
+                    cursor:"pointer", background:"white",
+                    position:"relative",
+                    boxShadow: active ? "0 4px 20px rgba(91,110,245,0.35)" : hov ? "0 4px 14px rgba(167,139,250,0.28)" : "none",
+                    transform: hov && !active ? "translateY(-2px)" : "none",
+                    transition:"all 0.18s", padding:0,
+                  }}
                 >
-                  {value.icon} <span>{value.label}</span>
+                  <img src={`/image/${f}`} alt={`Frame ${i+1}`}
+                    style={{ width:"100%", height:"100%", objectFit:"fill", padding:4, display:"block" }}/>
+                  {active && (
+                    <div style={{ position:"absolute", bottom:5, right:5 }}>
+                      <CheckCircle2 size={15} color={T.accent}/>
+                    </div>
+                  )}
                 </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </aside>
+              );
+            })}
+          </aside>
 
-      {/* CENTER: PREVIEW AREA */}
-      <main className="flex-1 relative flex flex-col items-center justify-center p-4 md:p-12 bg-[#F1F3F5] overflow-y-auto pt-[100px]!">
-        {!image ? (
-          <div className="text-center opacity-40">
-            <ImageIcon className="mx-auto mb-4" size={48} />
-            <p className="font-medium">Please upload an artwork to begin</p>
-          </div>
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center max-w-4xl mx-auto">
-            <div 
-              className="relative shadow-2xl bg-white w-full max-h-[50vh] md:max-h-[65vh] transition-all duration-500"
-              style={{ 
-                aspectRatio: `${RATIOS[ratio].aspect}`,
-                maxHeight: 'min(70vh, 100%)' 
-              }}
-            >
-              <div className="absolute" style={{ top: "5%", left: "5%", right: "5%", bottom: "5%" }}>
-                <Cropper
-                  image={image}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={RATIOS[ratio].aspect}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onCropComplete={onCropComplete}
-                  classes={{ containerClassName: "rounded-sm" }}
-                />
-              </div>
-              <img
-                src={frame}
-                alt="Frame"
-                className="absolute inset-0 w-full h-full pointer-events-none z-10 object-stretch"
-                style={{ width: '100%', height: '100%' }}
-              />
-            </div>
+        </div>{/* /inner */}
 
-            <div className="mt-8 w-full max-w-md bg-white rounded-2xl shadow-xl p-5 border border-slate-100 space-y-4">
-              <div className="flex items-center gap-4">
-                <ZoomIn size={18} className="text-slate-400 shrink-0" />
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.01}
-                  value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-900"
-                />
-                <span className="text-xs font-bold text-slate-500 w-10 text-right">{Math.round(zoom * 100)}%</span>
+        {/* Modal */}
+        {isPreviewOpen && (
+          <div onClick={() => setIsPreviewOpen(false)} style={{
+            position:"fixed", inset:0, zIndex:100,
+            display:"flex", alignItems:"center", justifyContent:"center", padding:16,
+            background:"rgba(15,20,60,0.52)",
+            backdropFilter:"blur(18px)", WebkitBackdropFilter:"blur(18px)",
+          }}>
+            <div onClick={e => e.stopPropagation()} style={{
+              position:"relative", width:"100%", maxWidth:760,
+              borderRadius:26, overflow:"hidden",
+              display:"flex", flexDirection:"column", maxHeight:"90vh",
+              background:"rgba(255,255,255,0.84)",
+              backdropFilter:"blur(40px) saturate(200%)",
+              WebkitBackdropFilter:"blur(40px) saturate(200%)",
+              border:"1.5px solid rgba(255,255,255,0.92)",
+              boxShadow:"0 32px 96px rgba(30,40,120,0.22)",
+            }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 24px", borderBottom:"1px solid rgba(91,110,245,0.1)", background:"rgba(255,255,255,0.7)", flexShrink:0 }}>
+                <div>
+                  <h2 style={{ fontFamily:T.fontDisplay, fontSize:"1.35rem", color:T.text, margin:0 }}>Framed Result</h2>
+                  <p style={{ fontSize:10, letterSpacing:"0.15em", textTransform:"uppercase", color:T.accent, fontWeight:700, margin:"3px 0 0", fontFamily:T.fontBody }}>Ready for export</p>
+                </div>
+                <button onClick={() => setIsPreviewOpen(false)} style={{ background:"rgba(91,110,245,0.08)", border:"none", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:T.textMid }}>
+                  <X size={19}/>
+                </button>
               </div>
-              <button
-                onClick={generateFinalImage}
-                disabled={isProcessing}
-                className="w-full flex items-center justify-center gap-2 bg-slate-900 hover:bg-black text-white font-bold py-3.5 rounded-xl transition-all active:scale-95 shadow-lg disabled:opacity-50"
-              >
-                {isProcessing ? "Processing..." : <><Eye size={18} /> Preview Framed Result</>}
-              </button>
+
+              <div style={{ flex:1, overflowY:"auto", padding:28, display:"flex", alignItems:"center", justifyContent:"center", background:"linear-gradient(135deg,#eef2ff 0%,#f5f0ff 100%)" }}>
+                <img src={finalPreviewUrl} alt="Final"
+                  style={{ maxWidth:"100%", maxHeight:"52vh", objectFit:"contain", borderRadius:10, boxShadow:"0 24px 72px rgba(30,40,120,0.22)" }}/>
+              </div>
+
+              <div style={{ padding:"18px 24px", borderTop:"1px solid rgba(91,110,245,0.1)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, background:"rgba(255,255,255,0.7)", flexWrap:"wrap", flexShrink:0 }}>
+                <p style={{ fontSize:12, color:T.textSoft, fontFamily:T.fontBody }}>{ratio === "landscape" ? "1200" : "800"}px · PNG</p>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={() => setIsPreviewOpen(false)} style={{ background:"none", border:"none", fontFamily:T.fontBody, fontSize:14, fontWeight:600, color:T.textMid, cursor:"pointer", padding:"11px 16px", borderRadius:T.radiusSm }}>
+                    Edit Further
+                  </button>
+                  <button onClick={downloadImage} style={{ display:"flex", alignItems:"center", gap:8, background:`linear-gradient(135deg,${T.accent},${T.accent2})`, color:"white", border:"none", borderRadius:T.radiusSm, padding:"11px 22px", fontFamily:T.fontBody, fontSize:14, fontWeight:700, cursor:"pointer", boxShadow:"0 6px 20px rgba(91,110,245,0.38)" }}>
+                    <Download size={15}/> Download
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
-      </main>
 
-      {/* RIGHT SIDEBAR: Frame Gallery */}
-      <aside className="w-full lg:w-72 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-6 overflow-x-auto">
-        <h3 className="text-xs font-bold text-slate-400 mb-4 uppercase tracking-widest text-[10px]">Available Frames</h3>
-        <div className="flex lg:grid lg:grid-cols-2 gap-3 pb-4">
-          {["frame.png", "frame1.png", "frame2.png"].map((f, i) => (
-            <button
-              key={i}
-              onClick={() => setFrame(`/image/${f}`)}
-              className={`relative flex-shrink-0 w-20 h-20 lg:w-auto lg:h-auto aspect-square rounded-xl overflow-hidden border-2 transition-all ${
-                frame.includes(f) ? "border-blue-500 ring-2 ring-blue-100" : "border-slate-100 hover:border-slate-300"
-              }`}
-            >
-              <img src={`/image/${f}`} alt="Frame" className="w-full h-full object-fill p-1" />
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      {/* --- PREMIUM PREVIEW MODAL --- */}
-      {isPreviewOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md" onClick={() => setIsPreviewOpen(false)} />
-          
-          {/* Modal Content */}
-          <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-full animate-in fade-in zoom-in duration-300">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-100 bg-white sticky top-0 z-10">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Final Result</h2>
-                <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">Ready for export</p>
-              </div>
-              <button 
-                onClick={() => setIsPreviewOpen(false)}
-                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            {/* Preview Image Container */}
-            <div className="flex-1 bg-[#F1F3F5] p-6 md:p-12 overflow-y-auto flex items-center justify-center min-h-0">
-               <div className="relative shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] max-h-full">
-                  <img 
-                    src={finalPreviewUrl} 
-                    alt="Final Framed Result" 
-                    className="max-w-full max-h-[50vh] object-contain rounded-sm"
-                  />
-               </div>
-            </div>
-
-            {/* Footer Actions */}
-            <div className="p-6 bg-white border-t border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
-              <p className="text-sm text-slate-500 hidden md:block">
-                Generated at high-resolution {ratio === "landscape" ? "1200px" : "800px"} width.
-              </p>
-              <div className="flex gap-3 w-full md:w-auto">
-                <button 
-                  onClick={() => setIsPreviewOpen(false)}
-                  className="flex-1 md:flex-none px-6 py-3 font-semibold text-slate-600 hover:text-slate-900 transition-colors"
-                >
-                  Edit Further
-                </button>
-                <button 
-                  onClick={downloadImage}
-                  className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-95"
-                >
-                  <Download size={18} /> Download Master
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sidebar Overlay (Mobile) */}
-      {showSidebar && (
-        <div 
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setShowSidebar(false)}
-        />
-      )}
-    </div>
+      </div>
+    </>
   );
 };
 
