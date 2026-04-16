@@ -20,11 +20,14 @@
 
  "use client";
 
- import { useState, useRef, useCallback, useEffect } from "react";
+ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
  
  // ─── ALL FRAME PIECE IMAGES (base64 embedded) ──────────────────────────────
  
  const FRAME_PIECES = {
+  "woodblue": {
+    topTile: "/image/bluewood.png",
+  },
    "wood": {
      topTile: "/image/wood2.png",
    },
@@ -146,12 +149,40 @@
      rightTile:
        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAEsCAYAAACG+vy+AAACtElEQVR42u3TsW1CMRSG0f8a+rTMkJ7tMgSbZAZKmIMmCyAh5fmmeIJUFHQU50iWpWvLjfVV4I187PZdY5Ma2xwP6+x0vjzOv74/kxqpGklVqipJJVWPO1WV7v5/tDtJr7PudM+kZ/q+5kz3su5zSc/f9Fxyu/5k+BJ4TiAgEBAICAQEAgIBgYBAQCAgEEAgIBAQCAgEBAICAYGAQEAgIBBAICAQEAgIBAQCAgGBgEBAIIBAQCAgEBAICAQEAgIBgYBAQCCAQEAgIBAQCAgEBAICAYGAQACBgEBAICAQEAgIBAQCAgGBgEAAgYBAQCAgEBAICAQEAgIBgQACAYGAQEAgIBAQCAgEBAICAYEAAgGBgEBAICAQEAgIBAQCAgEEAgIBgYBAQCAgEBAICAQEAgIBBAICAYGAQEAgIBAQCAgEBAICAQQCAgGBgEBAICAQEAgIBAQCCAQEAgIBgYBAQCAgEBAICAQEAggEBAICAYGAQEAgIBAQCAgEEAgIBAQCAgGBgEBAICAQEAgIBBAICAQEAgIBgYBAQCAgEBAIIBAQCAgEBAICAYGAQEAgIBAQCCAQEAgIBAQCAgGBgEBAICAQQCAgEBAICAQEAgIBgYBAQCAgEEAgIBAQCAgEBAICAYGAQEAgIBBAICAQEAgIBAQCAgGBgEBAIIBAQCAgEBAICAQEAgIBgYBAQCCAQEAgIBAQCAgEBAICAYGAQACBgEBAICAQEAgIBAQCAgGBgEAAgYBAQCAgEBAICAQEAgIBgQACAYGAQEAgIBAQCAgEBAICAYEAAgGBgEBAICAQEAgIBAQCAgEEAgIBgYBAQCAgEBAICAQEAgIBBAICAYGAQEAgIBAQCAgEBAICAQQCAgGBgEBAICAQEAgIBAQCCAQEAgIBgYBAQCAgEBAICAQEAggEXvUH7jQzi6zzP68AAAAASUVORK5CYII=",
    },
+   "corner-set": {
+     topTile: "/image/side.jpeg",
+     bottomTile: "/image/side.jpeg",
+     leftTile: "/image/side.jpeg",
+     rightTile: "/image/side.jpeg",
+     cornerTL: "/image/corner.jpeg",
+     cornerTR: "/image/corner.jpeg",
+     cornerBL: "/image/corner.jpeg",
+     cornerBR: "/image/corner.jpeg",
+   },
+   "frame-natural": {
+     topTile: "/image/frame.png",
+   },
+   "frame-gold": {
+     topTile: "/image/frame1.png",
+   },
+   "frame-slim": {
+     topTile: "/image/frame2.png",
+   },
  };
- 
+
  // ─── FRAME DEFINITIONS ────────────────────────────────────────────────────
  
  const FRAMES = [
    // ── 8-piece PNG frames ──────────────────────────────────────────────────
+   {
+    id: "woodblue",
+    name: "Unique Frame",
+    tag: "Ornate",
+    cat: "ornate",
+    type: "8piece",
+    cornerW: 110,
+    cornerH: 110,
+  },
    {
      id: "wood",
      name: "Unique Frame",
@@ -312,6 +343,99 @@
      innerShadow: "inset 0 0 14px rgba(0,0,0,.5)",
      fw: 24,
    },
+   // ── New image-based frames ──────────────────────────────────────────────
+   {
+     id: "corner-set",
+     name: "Corner & Side",
+     tag: "Classic",
+     cat: "classic",
+     type: "8piece",
+     cornerW: 110,
+     cornerH: 110,
+   },
+   {
+     id: "frame-natural",
+     name: "Natural Wood",
+     tag: "Classic",
+     cat: "classic",
+     type: "8piece",
+     cornerW: 100,
+     cornerH: 100,
+   },
+   {
+     id: "frame-gold",
+     name: "Gold Leaf",
+     tag: "Ornate",
+     cat: "ornate",
+     type: "8piece",
+     cornerW: 100,
+     cornerH: 100,
+   },
+   {
+     id: "frame-slim",
+     name: "Slim Profile",
+     tag: "Modern",
+     cat: "modern",
+     type: "8piece",
+     cornerW: 80,
+     cornerH: 80,
+   },
+   // ── New CSS frames ──────────────────────────────────────────────────────
+   {
+     id: "emerald-modern",
+     name: "Emerald Modern",
+     tag: "Modern",
+     cat: "modern",
+     type: "css",
+     shadow:
+       "inset 0 0 0 2px #34d399,inset 0 0 0 4px #059669,0 0 0 20px #065f46,0 0 0 22px #047857,0 0 0 24px #34d399,6px 10px 36px rgba(0,0,0,.65)",
+     innerShadow: "inset 0 0 16px rgba(0,0,0,.5)",
+     fw: 24,
+   },
+   {
+     id: "rose-gold",
+     name: "Rose Gold",
+     tag: "Ornate",
+     cat: "ornate",
+     type: "css",
+     shadow:
+       "inset 0 0 0 2px #fda4af,inset 0 0 0 4px #e11d48,0 0 0 24px #be185d,0 0 0 26px #9f1239,0 0 0 28px #fda4af,0 0 0 30px #831843,8px 12px 40px rgba(0,0,0,.7)",
+     innerShadow: "inset 0 0 18px rgba(0,0,0,.5)",
+     fw: 30,
+   },
+   {
+     id: "cobalt-blue",
+     name: "Cobalt Blue",
+     tag: "Modern",
+     cat: "modern",
+     type: "css",
+     shadow:
+       "inset 0 0 0 2px #60a5fa,inset 0 0 0 4px #2563eb,0 0 0 22px #1e3a8a,0 0 0 24px #1d4ed8,0 0 0 26px #60a5fa,7px 10px 38px rgba(0,0,0,.65)",
+     innerShadow: "inset 0 0 16px rgba(0,0,0,.45)",
+     fw: 26,
+   },
+   {
+     id: "pearl-white",
+     name: "Pearl White",
+     tag: "Classic",
+     cat: "classic",
+     type: "css",
+     shadow:
+       "inset 0 0 0 2px #f1f5f9,inset 0 0 0 4px #cbd5e1,0 0 0 26px #e2e8f0,0 0 0 28px #94a3b8,0 0 0 30px #f8fafc,0 0 0 32px #64748b,8px 12px 40px rgba(0,0,0,.5)",
+     innerShadow: "inset 0 0 16px rgba(0,0,0,.35)",
+     fw: 32,
+   },
+   {
+     id: "matte-black",
+     name: "Matte Black",
+     tag: "Modern",
+     cat: "modern",
+     type: "css",
+     shadow:
+       "inset 0 0 0 2px #27272a,inset 0 0 0 4px #18181b,0 0 0 20px #09090b,0 0 0 22px #27272a,0 0 0 24px #3f3f46,6px 10px 36px rgba(0,0,0,.8)",
+     innerShadow: "inset 0 0 20px rgba(0,0,0,.6)",
+     fw: 22,
+   },
  ];
  
  const MAT_COLORS = [
@@ -333,15 +457,16 @@
    { name: "Terracotta", value: "#c4846c" },
    { name: "Charcoal", value: "#3a3530" },
    { name: "Deep Navy", value: "#1a2644" },
-   { name: "Dark Studio", value: "#1a1714" },
+   { name: "Dark Studio", value: "#09090B" },
  ];
  
- const CATS = ["all", "classic", "ornate", "modern", "vintage"];
+ const CATS = ["all", "classic", "ornate", "modern", "vintage", "custom"];
  
  // ─── 8-PIECE FRAME COMPONENT ──────────────────────────────────────────────
  
  function EightPieceFrame({
    frameId,
+   piecesOverride,
    cornerW = 40,
    cornerH = 40,
    matThickness = 20,
@@ -350,7 +475,7 @@
    paintingW = 400,
    paintingH = 300,
  }) {
-   const pieces = FRAME_PIECES[frameId];
+   const pieces = piecesOverride || FRAME_PIECES[frameId];
  
    // 🔥 State for rotated images
    const [rotatedImages, setRotatedImages] = useState({
@@ -365,8 +490,7 @@
      return new Promise((resolve) => {
        const img = new Image();
        img.src = imageUrl;
-       img.crossOrigin = "anonymous";
- 
+
        img.onload = () => {
          const canvas = document.createElement("canvas");
          const ctx = canvas.getContext("2d");
@@ -507,7 +631,7 @@
          {/* Middle */}
          <div style={leftStyle} />
  
-         <div style={centerStyle}>
+         <div className="frame-center-cell" style={centerStyle}>
            <div style={matStyle}>
              {imageSrc && <img src={imageSrc} style={artStyle} alt="art" />}
            </div>
@@ -562,8 +686,8 @@
  
  // ─── FRAME THUMBNAIL CARD ─────────────────────────────────────────────────
  
- function FrameCard({ frame, isActive, onClick }) {
-   const pieces = frame.type === "8piece" ? FRAME_PIECES[frame.id] : null;
+ function FrameCard({ frame, isActive, onClick, pieces: piecesProp, isCustom, onRemove }) {
+   const pieces = piecesProp || (frame.type === "8piece" ? FRAME_PIECES[frame.id] : null);
  
    return (
      <div
@@ -572,8 +696,8 @@
          cursor: "pointer",
          borderRadius: 7,
          padding: 8,
-         border: `1.5px solid ${isActive ? "#c9a84c" : "#3d3530"}`,
-         background: isActive ? "rgba(201,168,76,.07)" : "#2c2720",
+         border: `1.5px solid ${isActive ? "#6366F1" : "#334155"}`,
+         background: isActive ? "rgba(99,102,241,0.12)" : "#1E293B",
          transition: "all .2s",
          position: "relative",
        }}
@@ -586,10 +710,10 @@
              right: 5,
              width: 16,
              height: 16,
-             background: "#c9a84c",
+             background: "#6366F1",
              borderRadius: "50%",
              fontSize: 9,
-             color: "#1c1814",
+             color: "#ffffff",
              lineHeight: "16px",
              textAlign: "center",
            }}
@@ -648,7 +772,7 @@
                      }}
                    />
                  ) : (
-                   <div key={i} style={{ background: "#c8b080" }} />
+                   <div key={i} style={{ background: "#cbd5e1" }} />
                  ),
                )}
              </div>
@@ -685,19 +809,39 @@
            </div>
          )}
        </div>
-       <div style={{ fontSize: 10, color: "#f0e8d8", textAlign: "center" }}>
+       <div style={{ fontSize: 10, color: "#F1F5F9", textAlign: "center" }}>
          {frame.name}
        </div>
        <div
          style={{
            fontSize: 8,
-           color: "#8a7d6e",
+           color: "#94A3B8",
            textAlign: "center",
            marginTop: 1,
          }}
        >
          {frame.tag}
        </div>
+       {isCustom && onRemove && (
+         <button
+           onClick={(e) => { e.stopPropagation(); onRemove(frame.id); }}
+           style={{
+             marginTop: 5,
+             width: "100%",
+             padding: "3px 0",
+             borderRadius: 4,
+             border: "1px solid #ef444444",
+             background: "rgba(239,68,68,0.08)",
+             color: "#f87171",
+             fontSize: 9,
+             fontWeight: 700,
+             cursor: "pointer",
+             letterSpacing: "0.06em",
+           }}
+         >
+           ✕ Remove
+         </button>
+       )}
      </div>
    );
  }
@@ -712,18 +856,33 @@
    const [matOn, setMatOn] = useState(true);
    const [matThick, setMatThick] = useState(24);
    const [matColor, setMatColor] = useState("#ffffff");
-   const [wall, setWall] = useState("#e3cdb7");
+   const [wall, setWall] = useState("#ffffff");
    const [zoom, setZoom] = useState(100);
    const [activeTab, setActiveTab] = useState("frames");
    const [isDragging, setIsDragging] = useState(false);
- 
+
+   // Dimension dialog state
+   const [pendingFile, setPendingFile] = useState(null);
+   const [showDimDialog, setShowDimDialog] = useState(false);
+   const [dialogW, setDialogW] = useState("16");
+   const [dialogH, setDialogH] = useState("12");
+   const [dialogUnit, setDialogUnit] = useState("in");
+
    // All internal values stored in FEET for simplicity
    const [paintingW_ft, setPaintingW_ft] = useState(1.33);   // 16 inches default
    const [paintingH_ft, setPaintingH_ft] = useState(1.0);    // 12 inches default
    const [frameThick_ft, setFrameThick_ft] = useState(0.21); // ~2.5 inch frame default
    const [paintingUnit, setPaintingUnit] = useState("in");    // "ft" | "in" | "cm"
    const fileInputRef = useRef(null);
- 
+   const frameInputRef = useRef(null);
+
+   // Custom frames added by the user
+   const [customFrames, setCustomFrames] = useState([]);
+   const [customPieces, setCustomPieces] = useState({});
+
+   const allFrames = useMemo(() => [...customFrames, ...FRAMES], [customFrames]);
+   const allPieces = useMemo(() => ({ ...FRAME_PIECES, ...customPieces }), [customPieces]);
+
    // ── Unit helpers ──────────────────────────────────────────────────────────
    const toFt = (val, unit) => {
      if (unit === "ft") return val;
@@ -747,8 +906,22 @@
    // Frame corner size in px = real frame thickness in ft × pxPerFt
    const autoCornerPx = Math.max(16, Math.min(160, Math.round(frameThick_ft * pxPerFt)));
  
+   // Show dimension dialog when a file is picked
    const handleFile = useCallback((file) => {
      if (!file || !file.type.startsWith("image/")) return;
+     setPendingFile(file);
+     setShowDimDialog(true);
+   }, []);
+
+   // Called when user confirms dimensions in the dialog
+   const confirmDimensions = useCallback(() => {
+     if (!pendingFile) return;
+     const wNum = parseFloat(dialogW) || 16;
+     const hNum = parseFloat(dialogH) || 12;
+     const toFtLocal = (v, u) => u === "ft" ? v : u === "in" ? v / 12 : v / 30.48;
+     setPaintingW_ft(toFtLocal(wNum, dialogUnit));
+     setPaintingH_ft(toFtLocal(hNum, dialogUnit));
+     setPaintingUnit(dialogUnit);
      const reader = new FileReader();
      reader.onload = (e) => {
        const img = new Image();
@@ -758,19 +931,84 @@
        };
        img.src = e.target.result;
      };
+     reader.readAsDataURL(pendingFile);
+     setPendingFile(null);
+     setShowDimDialog(false);
+   }, [pendingFile, dialogW, dialogH, dialogUnit]);
+
+   // ── Custom frame add / remove ─────────────────────────────────────────────
+   const handleAddFrame = useCallback((file) => {
+     if (!file || !file.type.startsWith("image/")) return;
+     const reader = new FileReader();
+     reader.onload = (e) => {
+       const dataUrl = e.target.result;
+       const id = "custom-" + Date.now();
+       const name = file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").slice(0, 20);
+       const newFrame = { id, name, tag: "Custom", cat: "custom", type: "8piece", cornerW: 40, cornerH: 40 };
+       setCustomFrames((prev) => [newFrame, ...prev]);
+       setCustomPieces((prev) => ({ ...prev, [id]: { topTile: dataUrl } }));
+     };
      reader.readAsDataURL(file);
    }, []);
- 
-   const handleExport = useCallback(() => {
+
+   const handleRemoveFrame = useCallback((frameId) => {
+     setCustomFrames((prev) => prev.filter((f) => f.id !== frameId));
+     setCustomPieces((prev) => { const next = { ...prev }; delete next[frameId]; return next; });
+     setFrame((cur) => (cur.id === frameId ? FRAMES[0] : cur));
+   }, []);
+
+   // Listen for gallery frame-selection events
+   useEffect(() => {
+     const handler = (e) => {
+       const { frameId } = e.detail || {};
+       if (!frameId) return;
+       const found = allFrames.find((f) => f.id === frameId);
+       if (found) {
+         setFrame(found);
+         setActiveTab("frames");
+       }
+     };
+     window.addEventListener("frameSelect", handler);
+     return () => window.removeEventListener("frameSelect", handler);
+   }, [allFrames]);
+
+   // Rotate an image URL by deg degrees, returns a data-URL promise
+   const rotateImageUrl = (url, deg) =>
+     new Promise((resolve) => {
+       const img = new Image();
+       img.onload = () => {
+         const c = document.createElement("canvas");
+         const rad = (deg * Math.PI) / 180;
+         if (deg === 90 || deg === -90) {
+           c.width = img.height;
+           c.height = img.width;
+         } else {
+           c.width = img.width;
+           c.height = img.height;
+         }
+         const ctx = c.getContext("2d");
+         ctx.translate(c.width / 2, c.height / 2);
+         ctx.rotate(rad);
+         ctx.drawImage(img, -img.width / 2, -img.height / 2);
+         resolve(c.toDataURL());
+       };
+       img.onerror = () => resolve(url);
+       img.src = url;
+     });
+
+   const handleExport = useCallback(async () => {
      if (!image) return;
      const mp = matOn ? matThick : 0;
+
      const loadImg = (src) =>
-       new Promise((res) => {
+       new Promise((res, rej) => {
+         if (!src) { rej(new Error("no src")); return; }
          const i = new Image();
          i.onload = () => res(i);
+         i.onerror = () => rej(new Error("load failed: " + src));
          i.src = src;
        });
- 
+
      if (frame.type === "8piece") {
        const centerEl = document.querySelector(".frame-center-cell");
        if (!centerEl) return;
@@ -778,141 +1016,120 @@
        const { cornerW: crnW, cornerH: crnH } = frame;
        const totalW = Math.round(cw) + crnW * 2;
        const totalH = Math.round(ch) + crnH * 2;
-       const pieces = FRAME_PIECES[frame.id];
- 
+       const pieces = allPieces[frame.id];
+
+       // Generate all 4 directional tiles — rotate topTile if others are absent
+       const [topUrl, botUrl, leftUrl, rightUrl] = await Promise.all([
+         rotateImageUrl(pieces.topTile, 0),
+         pieces.bottomTile ? rotateImageUrl(pieces.bottomTile, 0) : rotateImageUrl(pieces.topTile, 180),
+         pieces.leftTile   ? rotateImageUrl(pieces.leftTile, 0)   : rotateImageUrl(pieces.topTile, -90),
+         pieces.rightTile  ? rotateImageUrl(pieces.rightTile, 0)  : rotateImageUrl(pieces.topTile, 90),
+       ]);
+
+       let top, bot, left, right, art;
+       try {
+         [top, bot, left, right, art] = await Promise.all([
+           loadImg(topUrl), loadImg(botUrl), loadImg(leftUrl), loadImg(rightUrl),
+           loadImg(image),
+         ]);
+       } catch (err) {
+         console.error("Export failed loading tiles:", err);
+         return;
+       }
+
        const canvas = document.createElement("canvas");
        canvas.width = totalW;
        canvas.height = totalH;
        const ctx = canvas.getContext("2d");
- 
-       Promise.all([
-         loadImg(pieces.topTile),
-         loadImg(pieces.bottomTile),
-         loadImg(pieces.leftTile),
-         loadImg(pieces.rightTile),
-         loadImg(image),
-       ]).then(([top, bot, left, right, art]) => {
-         const iW = Math.round(cw) - mp * 2,
-           iH = Math.round(ch) - mp * 2;
-         ctx.fillStyle = matColor;
-         ctx.fillRect(crnW, crnH, Math.round(cw), Math.round(ch));
-         const ar = art.naturalWidth / art.naturalHeight;
-         let dw = iW,
-           dh = iH;
-         if (dw / dh > ar) dw = dh * ar;
-         else dh = dw / ar;
-         ctx.drawImage(
-           art,
-           crnW + mp + (iW - dw) / 2,
-           crnH + mp + (iH - dh) / 2,
-           dw,
-           dh,
-         );
- 
-         // Helper function to tile an image
-         const tileImage = (img, x, y, w, h, repeatX) => {
-           const iw = img.naturalWidth;
-           const ih = img.naturalHeight;
-           if (repeatX) {
-             // Tile horizontally
-             for (let ox = 0; ox < w; ox += iw) {
-               const drawW = Math.min(iw, w - ox);
-               ctx.drawImage(img, 0, 0, drawW, ih, x + ox, y, drawW, h);
-             }
-           } else {
-             // Tile vertically
-             for (let oy = 0; oy < h; oy += ih) {
-               const drawH = Math.min(ih, h - oy);
-               ctx.drawImage(img, 0, 0, iw, drawH, x, y + oy, w, drawH);
-             }
+
+       const iW = Math.round(cw) - mp * 2;
+       const iH = Math.round(ch) - mp * 2;
+       ctx.fillStyle = matColor;
+       ctx.fillRect(crnW, crnH, Math.round(cw), Math.round(ch));
+       const ar = art.naturalWidth / art.naturalHeight;
+       let dw = iW, dh = iH;
+       if (dw / dh > ar) dw = dh * ar; else dh = dw / ar;
+       ctx.drawImage(art, crnW + mp + (iW - dw) / 2, crnH + mp + (iH - dh) / 2, dw, dh);
+
+       const tileImage = (imgEl, x, y, w, h, repeatX) => {
+         const iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
+         if (repeatX) {
+           for (let ox = 0; ox < w; ox += iw) {
+             const drawW = Math.min(iw, w - ox);
+             ctx.drawImage(imgEl, 0, 0, drawW, ih, x + ox, y, drawW, h);
            }
-         };
- 
-         // Draw edges with precise 45-degree diagonal miters
- 
-         // TOP EDGE - Diagonal cut at corners (left corner: crnW to 0, right corner: totalW-crnW to 100%)
-         ctx.save();
-         ctx.beginPath();
-         ctx.moveTo(crnW, 0); // Start at top-left corner cut
-         ctx.lineTo(crnW, crnH); // Go down to meet left edge
-         ctx.lineTo(totalW - crnW, crnH); // Go across to right corner
-         ctx.lineTo(totalW - crnW, 0); // Go up to top-right corner cut
-         ctx.closePath();
-         ctx.clip();
-         tileImage(top, 0, 0, totalW, crnH, true);
-         ctx.restore();
- 
-         // BOTTOM EDGE - Diagonal cut at corners
-         ctx.save();
-         ctx.beginPath();
-         ctx.moveTo(crnW, totalH); // Start at bottom-left corner cut
-         ctx.lineTo(crnW, totalH - crnH); // Go up to meet left edge
-         ctx.lineTo(totalW - crnW, totalH - crnH); // Go across to right corner
-         ctx.lineTo(totalW - crnW, totalH); // Go down to bottom-right corner cut
-         ctx.closePath();
-         ctx.clip();
-         tileImage(bot, 0, totalH - crnH, totalW, crnH, true);
-         ctx.restore();
- 
-         // LEFT EDGE - Diagonal cut at corners (top: 0 to crnH, bottom: totalH-crnH to totalH)
-         ctx.save();
-         ctx.beginPath();
-         ctx.moveTo(0, crnH); // Start at top-left corner cut
-         ctx.lineTo(crnW, crnH); // Go right to meet top edge
-         ctx.lineTo(crnW, totalH - crnH); // Go down to bottom corner
-         ctx.lineTo(0, totalH - crnH); // Go left to bottom-left corner cut
-         ctx.closePath();
-         ctx.clip();
-         tileImage(left, 0, 0, crnW, totalH, false);
-         ctx.restore();
- 
-         // RIGHT EDGE - Diagonal cut at corners
-         ctx.save();
-         ctx.beginPath();
-         ctx.moveTo(totalW, crnH); // Start at top-right corner cut
-         ctx.lineTo(totalW - crnW, crnH); // Go left to meet top edge
-         ctx.lineTo(totalW - crnW, totalH - crnH); // Go down to bottom corner
-         ctx.lineTo(totalW, totalH - crnH); // Go right to bottom-right corner cut
-         ctx.closePath();
-         ctx.clip();
-         tileImage(right, totalW - crnW, 0, crnW, totalH, false);
-         ctx.restore();
- 
-         const a = document.createElement("a");
-         a.download = "framed-artwork.png";
-         a.href = canvas.toDataURL("image/png");
-         a.click();
-       });
+         } else {
+           for (let oy = 0; oy < h; oy += ih) {
+             const drawH = Math.min(ih, h - oy);
+             ctx.drawImage(imgEl, 0, 0, iw, drawH, x, y + oy, w, drawH);
+           }
+         }
+       };
+
+       ctx.save(); ctx.beginPath();
+       ctx.moveTo(crnW, 0); ctx.lineTo(crnW, crnH); ctx.lineTo(totalW - crnW, crnH); ctx.lineTo(totalW - crnW, 0); ctx.closePath(); ctx.clip();
+       tileImage(top, 0, 0, totalW, crnH, true); ctx.restore();
+
+       ctx.save(); ctx.beginPath();
+       ctx.moveTo(crnW, totalH); ctx.lineTo(crnW, totalH - crnH); ctx.lineTo(totalW - crnW, totalH - crnH); ctx.lineTo(totalW - crnW, totalH); ctx.closePath(); ctx.clip();
+       tileImage(bot, 0, totalH - crnH, totalW, crnH, true); ctx.restore();
+
+       ctx.save(); ctx.beginPath();
+       ctx.moveTo(0, crnH); ctx.lineTo(crnW, crnH); ctx.lineTo(crnW, totalH - crnH); ctx.lineTo(0, totalH - crnH); ctx.closePath(); ctx.clip();
+       tileImage(left, 0, 0, crnW, totalH, false); ctx.restore();
+
+       ctx.save(); ctx.beginPath();
+       ctx.moveTo(totalW, crnH); ctx.lineTo(totalW - crnW, crnH); ctx.lineTo(totalW - crnW, totalH - crnH); ctx.lineTo(totalW, totalH - crnH); ctx.closePath(); ctx.clip();
+       tileImage(right, totalW - crnW, 0, crnW, totalH, false); ctx.restore();
+
+       // Draw corners if available
+       if (pieces.cornerTL) {
+         const cornerImgs = await Promise.all([
+           loadImg(pieces.cornerTL).catch(() => null),
+           loadImg(pieces.cornerTR || pieces.cornerTL).catch(() => null),
+           loadImg(pieces.cornerBL || pieces.cornerTL).catch(() => null),
+           loadImg(pieces.cornerBR || pieces.cornerTL).catch(() => null),
+         ]);
+         const [ctlImg, ctrImg, cblImg, cbrImg] = cornerImgs;
+         if (ctlImg) ctx.drawImage(ctlImg, 0, 0, crnW, crnH);
+         if (ctrImg) ctx.drawImage(ctrImg, totalW - crnW, 0, crnW, crnH);
+         if (cblImg) ctx.drawImage(cblImg, 0, totalH - crnH, crnW, crnH);
+         if (cbrImg) ctx.drawImage(cbrImg, totalW - crnW, totalH - crnH, crnW, crnH);
+       }
+
+       const a = document.createElement("a");
+       a.download = "dhara-framed.png";
+       a.href = canvas.toDataURL("image/png");
+       a.click();
+
      } else {
        const fw = frame.fw || 16;
-       loadImg(image).then((art) => {
-         const iw = art.naturalWidth,
-           ih = art.naturalHeight,
-           tot = mp + fw;
-         const canvas = document.createElement("canvas");
-         canvas.width = iw + tot * 2;
-         canvas.height = ih + tot * 2;
-         const ctx = canvas.getContext("2d");
-         ctx.fillStyle = matColor;
-         ctx.fillRect(fw, fw, iw + mp * 2, ih + mp * 2);
-         ctx.drawImage(art, tot, tot, iw, ih);
-         const a = document.createElement("a");
-         a.download = "framed-artwork.png";
-         a.href = canvas.toDataURL("image/png");
-         a.click();
-       });
+       let art;
+       try { art = await loadImg(image); } catch { return; }
+       const iw = art.naturalWidth, ih = art.naturalHeight, tot = mp + fw;
+       const canvas = document.createElement("canvas");
+       canvas.width = iw + tot * 2;
+       canvas.height = ih + tot * 2;
+       const ctx = canvas.getContext("2d");
+       ctx.fillStyle = matColor;
+       ctx.fillRect(fw, fw, iw + mp * 2, ih + mp * 2);
+       ctx.drawImage(art, tot, tot, iw, ih);
+       const a = document.createElement("a");
+       a.download = "dhara-framed.png";
+       a.href = canvas.toDataURL("image/png");
+       a.click();
      }
-   }, [image, frame, matOn, matThick, matColor]);
+   }, [image, frame, matOn, matThick, matColor, allPieces]);
  
    const mp = matOn ? matThick : 0;
    const visibleFrames =
-     frameCat === "all" ? FRAMES : FRAMES.filter((f) => f.cat === frameCat);
+     frameCat === "all" ? allFrames : allFrames.filter((f) => f.cat === frameCat);
  
    // ── Inline styles ──────────────────────────────────────────────────────
    const S = {
      root: {
-       background: "#1a1714",
-       color: "#f0e8d8",
+       background: "#0F172A",
+       color: "#F1F5F9",
        height: "100vh",
        display: "flex",
        flexDirection: "column",
@@ -923,15 +1140,15 @@
        alignItems: "center",
        justifyContent: "space-between",
        padding: "11px 20px",
-       background: "#221e19",
-       borderBottom: "1px solid #3d3530",
+       background: "#1E293B",
+       borderBottom: "1px solid #334155",
        flexShrink: 0,
      },
      logo: { display: "flex", alignItems: "center", gap: 10 },
      logoIcon: {
        width: 32,
        height: 32,
-       background: "linear-gradient(135deg,#c9a84c,#8b5e2a)",
+       background: "linear-gradient(135deg,#6366F1,#4338CA)",
        borderRadius: 7,
        display: "flex",
        alignItems: "center",
@@ -943,15 +1160,15 @@
        display: "flex",
        alignItems: "center",
        gap: 3,
-       background: "#2c2720",
-       border: "1px solid #3d3530",
+       background: "#1E293B",
+       border: "1px solid #334155",
        borderRadius: 7,
        padding: "3px 8px",
      },
      zoomBtn: {
        background: "none",
        border: "none",
-       color: "#8a7d6e",
+       color: "#94A3B8",
        cursor: "pointer",
        fontSize: 14,
        padding: "2px 6px",
@@ -959,8 +1176,8 @@
        lineHeight: 1,
      },
      exportBtn: {
-       background: "linear-gradient(135deg,#c9a84c,#8b5e2a)",
-       color: "#1c1814",
+       background: "linear-gradient(135deg,#6366F1,#4338CA)",
+       color: "#ffffff",
        border: "none",
        padding: "7px 14px",
        borderRadius: 7,
@@ -977,8 +1194,8 @@
      sidebar: {
        width: 276,
        minWidth: 276,
-       background: "#221e19",
-       borderRight: "1px solid #3d3530",
+       background: "#1E293B",
+       borderRight: "1px solid #334155",
        display: "flex",
        flexDirection: "column",
        overflow: "hidden",
@@ -986,15 +1203,15 @@
      sbScroll: { flex: 1, overflowY: "auto" },
      upZone: {
        margin: "13px 13px 0",
-       border: `1.5px ${isDragging || image ? "solid" : "dashed"} ${isDragging || image ? "#c9a84c" : "#3d3530"}`,
+       border: `1.5px ${isDragging || image ? "solid" : "dashed"} ${isDragging || image ? "#6366F1" : "#334155"}`,
        borderRadius: 9,
        padding: "16px 12px",
        textAlign: "center",
        cursor: "pointer",
-       background: isDragging ? "rgba(201,168,76,.06)" : "transparent",
+       background: isDragging ? "rgba(99,102,241,0.08)" : "transparent",
        transition: "all .2s",
      },
-     tabs: { display: "flex", borderBottom: "1px solid #3d3530", marginTop: 11 },
+     tabs: { display: "flex", borderBottom: "1px solid #334155", marginTop: 11 },
      tab: (id) => ({
        flex: 1,
        padding: "9px 4px",
@@ -1004,10 +1221,10 @@
        textTransform: "uppercase",
        textAlign: "center",
        cursor: "pointer",
-       color: activeTab === id ? "#c9a84c" : "#8a7d6e",
+       color: activeTab === id ? "#6366F1" : "#94A3B8",
        border: "none",
        background: "none",
-       borderBottom: `2px solid ${activeTab === id ? "#c9a84c" : "transparent"}`,
+       borderBottom: `2px solid ${activeTab === id ? "#6366F1" : "transparent"}`,
        transition: "all .2s",
      }),
      sec: { padding: 12 },
@@ -1015,7 +1232,7 @@
        fontSize: 9,
        letterSpacing: 2,
        textTransform: "uppercase",
-       color: "#8a7d6e",
+       color: "#94A3B8",
        marginBottom: 9,
      },
      catRow: { display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 9 },
@@ -1025,17 +1242,17 @@
        fontSize: 9,
        fontWeight: 500,
        cursor: "pointer",
-       border: `1px solid ${frameCat === id ? "#c9a84c" : "#3d3530"}`,
-       background: frameCat === id ? "#c9a84c" : "transparent",
-       color: frameCat === id ? "#1c1814" : "#8a7d6e",
+       border: `1px solid ${frameCat === id ? "#6366F1" : "#334155"}`,
+       background: frameCat === id ? "#6366F1" : "transparent",
+       color: frameCat === id ? "#ffffff" : "#94A3B8",
        transition: "all .2s",
      }),
      fGrid: { display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 7 },
      ctrlRow: { display: "flex", alignItems: "center", gap: 7, marginBottom: 9 },
-     ctrlLbl: { fontSize: 10, color: "#8a7d6e", minWidth: 64 },
+     ctrlLbl: { fontSize: 10, color: "#94A3B8", minWidth: 64 },
      ctrlVal: {
        fontSize: 10,
-       color: "#f0e8d8",
+       color: "#F1F5F9",
        minWidth: 28,
        textAlign: "right",
      },
@@ -1051,8 +1268,8 @@
        borderRadius: 5,
        cursor: "pointer",
        background: v,
-       border: `2px solid ${a ? "#c9a84c" : v === "#ffffff" ? "#555" : "transparent"}`,
-       boxShadow: a ? "0 0 0 1px #c9a84c" : "none",
+       border: `2px solid ${a ? "#6366F1" : v === "#ffffff" ? "#555" : "transparent"}`,
+       boxShadow: a ? "0 0 0 1px #6366F1" : "none",
        transition: "all .15s",
      }),
      togRow: {
@@ -1065,7 +1282,7 @@
        width: 35,
        height: 18,
        borderRadius: 9,
-       background: on ? "#c9a84c" : "#3d3530",
+       background: on ? "#6366F1" : "#334155",
        cursor: "pointer",
        position: "relative",
        transition: ".2s",
@@ -1090,15 +1307,15 @@
        borderRadius: 5,
        cursor: "pointer",
        background: v,
-       border: `2px solid ${a ? "#c9a84c" : "transparent"}`,
+       border: `2px solid ${a ? "#6366F1" : "transparent"}`,
        transition: "all .15s",
      }),
      tip: {
        padding: "11px 13px",
-       background: "rgba(201,168,76,.06)",
-       borderTop: "1px solid #3d3530",
+       background: "rgba(99,102,241,0.08)",
+       borderTop: "1px solid #334155",
        fontSize: 10,
-       color: "#8a7d6e",
+       color: "#94A3B8",
        lineHeight: 1.5,
        flexShrink: 0,
      },
@@ -1115,26 +1332,115 @@
      scene: {
        position: "relative",
        display: "inline-block",
-       transform: `scale(${zoom / 100})`,
-       transformOrigin: "center",
-       transition: "transform .3s",
+       transform: `perspective(1400px) rotateX(2deg) rotateY(-1.5deg) scale(${zoom / 100})`,
+       transformOrigin: "center center",
+       transition: "transform .4s cubic-bezier(.22,.68,0,1.2)",
+       filter: "drop-shadow(-6px -6px 20px rgba(99,102,241,0.08)) drop-shadow(10px 14px 40px rgba(0,0,0,0.85))",
      },
      shadow: {
        position: "absolute",
-       bottom: -20,
-       left: "8%",
-       right: "8%",
-       height: 20,
-       background: "rgba(0,0,0,.55)",
-       filter: "blur(24px)",
+       bottom: -28,
+       left: "6%",
+       right: "6%",
+       height: 28,
+       background: "rgba(0,0,0,.7)",
+       filter: "blur(32px)",
        borderRadius: "50%",
        zIndex: -1,
        pointerEvents: "none",
+       transform: "perspective(400px) rotateX(15deg)",
      },
    };
  
    return (
      <div style={S.root}>
+
+       {/* DIMENSION DIALOG MODAL */}
+       {showDimDialog && (
+         <div style={{
+           position: "fixed", inset: 0, zIndex: 9999,
+           background: "rgba(0,0,0,0.78)", backdropFilter: "blur(8px)",
+           display: "flex", alignItems: "center", justifyContent: "center",
+         }}>
+           <div style={{
+             background: "#18181B", borderRadius: 20, padding: "32px 36px",
+             border: "1.5px solid #334155", boxShadow: "0 24px 80px rgba(0,0,0,0.8)",
+             width: "100%", maxWidth: 360, color: "#FAFAFA",
+           }}>
+             <div style={{ fontSize: 22, marginBottom: 6 }}>📐</div>
+             <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>
+               What size is your artwork?
+             </h3>
+             <p style={{ fontSize: 12, color: "#94A3B8", marginBottom: 22, margin: "0 0 22px" }}>
+               Enter the real-world dimensions so the frame scales correctly.
+             </p>
+
+             {/* Unit selector */}
+             <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+               {[["in", "Inches"], ["ft", "Feet"], ["cm", "cm"]].map(([u, lbl]) => (
+                 <button key={u} onClick={() => setDialogUnit(u)} style={{
+                   flex: 1, padding: "7px 0", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                   border: `1.5px solid ${dialogUnit === u ? "#6366F1" : "#334155"}`,
+                   background: dialogUnit === u ? "rgba(99,102,241,0.12)" : "transparent",
+                   color: dialogUnit === u ? "#6366F1" : "#94A3B8",
+                 }}>{lbl}</button>
+               ))}
+             </div>
+
+             {/* W × H inputs */}
+             <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: 10, marginBottom: 24 }}>
+               <div>
+                 <label style={{ fontSize: 10, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Width</label>
+                 <input
+                   type="number" min="1" step="0.5" value={dialogW}
+                   onChange={(e) => setDialogW(e.target.value)}
+                   style={{
+                     width: "100%", padding: "9px 12px", borderRadius: 8, border: "1.5px solid #334155",
+                     background: "#09090B", color: "#FAFAFA", fontSize: 15, fontWeight: 600,
+                     outline: "none", boxSizing: "border-box",
+                   }}
+                   onFocus={(e) => { e.target.style.borderColor = "#6366F1"; }}
+                   onBlur={(e) => { e.target.style.borderColor = "#334155"; }}
+                 />
+               </div>
+               <span style={{ color: "#52525B", fontSize: 18, fontWeight: 300, paddingTop: 20 }}>×</span>
+               <div>
+                 <label style={{ fontSize: 10, color: "#94A3B8", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Height</label>
+                 <input
+                   type="number" min="1" step="0.5" value={dialogH}
+                   onChange={(e) => setDialogH(e.target.value)}
+                   style={{
+                     width: "100%", padding: "9px 12px", borderRadius: 8, border: "1.5px solid #334155",
+                     background: "#09090B", color: "#FAFAFA", fontSize: 15, fontWeight: 600,
+                     outline: "none", boxSizing: "border-box",
+                   }}
+                   onFocus={(e) => { e.target.style.borderColor = "#6366F1"; }}
+                   onBlur={(e) => { e.target.style.borderColor = "#334155"; }}
+                 />
+               </div>
+             </div>
+
+             {/* Confirm + cancel */}
+             <div style={{ display: "flex", gap: 10 }}>
+               <button onClick={() => { setPendingFile(null); setShowDimDialog(false); }} style={{
+                 flex: 1, padding: "11px 0", borderRadius: 10, border: "1.5px solid #334155",
+                 background: "transparent", color: "#94A3B8", fontSize: 13, fontWeight: 600, cursor: "pointer",
+               }}>
+                 Cancel
+               </button>
+               <button onClick={confirmDimensions} style={{
+                 flex: 2, padding: "11px 0", borderRadius: 10, border: "none",
+                 background: "linear-gradient(135deg,#6366F1,#4338CA)", color: "#ffffff",
+                 fontSize: 13, fontWeight: 800, cursor: "pointer",
+                 boxShadow: "0 6px 24px rgba(99,102,241,0.35)",
+               }}>
+                 Confirm & Frame It →
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
+
        {/* HEADER */}
        <header style={S.header}>
          <div style={S.logo}>
@@ -1149,7 +1455,7 @@
                Dhara Frame
              </div>
              <div
-               style={{ fontSize: 10, color: "#8a7d6e", fontStyle: "italic" }}
+               style={{ fontSize: 10, color: "#94A3B8", fontStyle: "italic" }}
              >
                Gallery-quality framing studio
              </div>
@@ -1168,7 +1474,7 @@
                  <span
                    style={{
                      fontSize: 11,
-                     color: "#f0e8d8",
+                     color: "#F1F5F9",
                      minWidth: 34,
                      textAlign: "center",
                    }}
@@ -1213,20 +1519,20 @@
                <div style={{ fontSize: 22, marginBottom: 4, opacity: 0.6 }}>
                  🎨
                </div>
-               <div style={{ fontSize: 11, color: "#8a7d6e", lineHeight: 1.5 }}>
-                 <strong style={{ color: "#c9a84c", fontWeight: 500 }}>
+               <div style={{ fontSize: 11, color: "#94A3B8", lineHeight: 1.5 }}>
+                 <strong style={{ color: "#6366F1", fontWeight: 500 }}>
                    Upload artwork
                  </strong>{" "}
                  · drag & drop
                </div>
-               <div style={{ fontSize: 11, color: "#8a7d6e" }}>
+               <div style={{ fontSize: 11, color: "#94A3B8" }}>
                  Any format · ratio preserved
                </div>
                {imageMeta && (
                  <div
                    style={{
                      fontSize: 9,
-                     color: "#c9a84c",
+                     color: "#6366F1",
                      marginTop: 3,
                      fontStyle: "italic",
                    }}
@@ -1319,9 +1625,9 @@
                            padding: "5px 0",
                            fontSize: 10,
                            fontWeight: 600,
-                           border: `1.5px solid ${paintingUnit === u.id ? "#c9a84c" : "#3d3530"}`,
-                           background: paintingUnit === u.id ? "rgba(201,168,76,.14)" : "transparent",
-                           color: paintingUnit === u.id ? "#c9a84c" : "#8a7d6e",
+                           border: `1.5px solid ${paintingUnit === u.id ? "#6366F1" : "#334155"}`,
+                           background: paintingUnit === u.id ? "rgba(99,102,241,0.12)" : "transparent",
+                           color: paintingUnit === u.id ? "#6366F1" : "#94A3B8",
                            borderRadius: 6,
                            cursor: "pointer",
                          }}
@@ -1346,7 +1652,7 @@
                          step={sliderStep}
                          value={val}
                          onChange={(e) => setter(Number(e.target.value))}
-                         style={{ flex: 1, accentColor: "#c9a84c" }}
+                         style={{ flex: 1, accentColor: "#6366F1" }}
                        />
                        <span style={{ ...S.ctrlVal, minWidth: 38 }}>
                          {val}{unitLabel(paintingUnit)}
@@ -1365,13 +1671,13 @@
                        step={ftSliderStep}
                        value={dispFT}
                        onChange={(e) => setFrameThick_ft(toFt(Number(e.target.value), paintingUnit))}
-                       style={{ flex: 1, accentColor: "#c9a84c" }}
+                       style={{ flex: 1, accentColor: "#6366F1" }}
                      />
                      <span style={{ ...S.ctrlVal, minWidth: 38 }}>
                        {dispFT}{unitLabel(paintingUnit)}
                      </span>
                    </div>
-                   <div style={{ fontSize: 9, color: "#8a7d6e", marginBottom: 12, lineHeight: 1.5 }}>
+                   <div style={{ fontSize: 9, color: "#94A3B8", marginBottom: 12, lineHeight: 1.5 }}>
                      This is the real-world width of the frame molding — set it to match your actual frame for a true-to-life preview.
                    </div>
  
@@ -1385,9 +1691,9 @@
                          style={{
                            padding: "5px 4px",
                            fontSize: 10,
-                           border: `1px solid ${isPresetActive(p) ? "#c9a84c" : "#3d3530"}`,
-                           background: isPresetActive(p) ? "rgba(201,168,76,.1)" : "transparent",
-                           color: isPresetActive(p) ? "#c9a84c" : "#8a7d6e",
+                           border: `1px solid ${isPresetActive(p) ? "#6366F1" : "#334155"}`,
+                           background: isPresetActive(p) ? "rgba(99,102,241,0.12)" : "transparent",
+                           color: isPresetActive(p) ? "#6366F1" : "#94A3B8",
                            borderRadius: 5,
                            cursor: "pointer",
                          }}
@@ -1398,8 +1704,8 @@
                    </div>
  
                    {/* ── Live summary card ── */}
-                   <div style={{ padding: "10px 11px", background: "rgba(201,168,76,.05)", borderRadius: 7, border: "1px solid #3d3530" }}>
-                     <div style={{ fontSize: 9, color: "#8a7d6e", letterSpacing: 1, textTransform: "uppercase", marginBottom: 7 }}>Real-world preview</div>
+                   <div style={{ padding: "10px 11px", background: "rgba(99,102,241,0.06)", borderRadius: 7, border: "1px solid #334155" }}>
+                     <div style={{ fontSize: 9, color: "#94A3B8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 7 }}>Real-world preview</div>
                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                        {[
                          { l: "Painting W", v: `${(paintingW_ft).toFixed(2)} ft` },
@@ -1408,12 +1714,12 @@
                          { l: "Frame px",   v: `${autoCornerPx}px` },
                        ].map(({ l, v }) => (
                          <div key={l}>
-                           <div style={{ fontSize: 8, color: "#8a7d6e" }}>{l}</div>
-                           <div style={{ fontSize: 11, color: "#c9a84c", fontWeight: 600 }}>{v}</div>
+                           <div style={{ fontSize: 8, color: "#94A3B8" }}>{l}</div>
+                           <div style={{ fontSize: 11, color: "#6366F1", fontWeight: 600 }}>{v}</div>
                          </div>
                        ))}
                      </div>
-                     <div style={{ fontSize: 9, color: "#8a7d6e", marginTop: 8, lineHeight: 1.5 }}>
+                     <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 8, lineHeight: 1.5 }}>
                        The frame border scales so {(frameThick_ft * 12).toFixed(1)}" molding on a {(paintingW_ft).toFixed(2)} ft canvas always looks proportionally correct on screen.
                      </div>
                    </div>
@@ -1435,6 +1741,28 @@
                      </button>
                    ))}
                  </div>
+                 {/* Add custom frame button */}
+                 <button
+                   onClick={() => frameInputRef.current?.click()}
+                   style={{
+                     width: "100%", marginBottom: 10, padding: "8px 0",
+                     borderRadius: 8, border: "1.5px dashed #6366F144",
+                     background: "rgba(99,102,241,0.06)", color: "#6366F1",
+                     fontSize: 11, fontWeight: 700, cursor: "pointer",
+                     letterSpacing: "0.06em", transition: "background 0.18s",
+                   }}
+                   onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(99,102,241,0.14)"; }}
+                   onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(99,102,241,0.06)"; }}
+                 >
+                   + Add Custom Frame
+                 </button>
+                 <input
+                   ref={frameInputRef}
+                   type="file"
+                   accept="image/*"
+                   style={{ display: "none" }}
+                   onChange={(e) => { if (e.target.files[0]) handleAddFrame(e.target.files[0]); e.target.value = ""; }}
+                 />
                  <div style={S.fGrid}>
                    {visibleFrames.map((f) => (
                      <FrameCard
@@ -1442,6 +1770,9 @@
                        frame={f}
                        isActive={f.id === frame.id}
                        onClick={() => setFrame(f)}
+                       pieces={allPieces[f.id]}
+                       isCustom={f.cat === "custom"}
+                       onRemove={handleRemoveFrame}
                      />
                    ))}
                  </div>
@@ -1452,7 +1783,7 @@
              {activeTab === "mat" && (
                <div style={S.sec}>
                  <div style={S.togRow}>
-                   <span style={{ fontSize: 12, color: "#8a7d6e" }}>
+                   <span style={{ fontSize: 12, color: "#94A3B8" }}>
                      Enable mat board
                    </span>
                    <div style={S.tog(matOn)} onClick={() => setMatOn((v) => !v)}>
@@ -1473,7 +1804,7 @@
                        max={80}
                        value={matThick}
                        onChange={(e) => setMatThick(Number(e.target.value))}
-                       style={{ flex: 1, accentColor: "#c9a84c" }}
+                       style={{ flex: 1, accentColor: "#6366F1" }}
                      />
                      <span style={S.ctrlVal}>{matThick}px</span>
                    </div>
@@ -1489,7 +1820,7 @@
                      ))}
                    </div>
                    <div style={S.custRow}>
-                     <label style={{ fontSize: 10, color: "#8a7d6e" }}>
+                     <label style={{ fontSize: 10, color: "#94A3B8" }}>
                        Custom
                      </label>
                      <input
@@ -1524,7 +1855,7 @@
                    ))}
                  </div>
                  <div style={{ ...S.custRow, marginTop: 8 }}>
-                   <label style={{ fontSize: 10, color: "#8a7d6e" }}>
+                   <label style={{ fontSize: 10, color: "#94A3B8" }}>
                      Custom
                    </label>
                    <input
@@ -1545,7 +1876,7 @@
            </div>
  
            <div style={S.tip}>
-             <strong style={{ color: "#c9a84c" }}>6 real PNG frames</strong> use
+             <strong style={{ color: "#6366F1" }}>6 real PNG frames</strong> use
              8-piece grid rendering — corners pinned, edges stretch one axis
              only. Zero distortion on any image size.
            </div>
@@ -1559,12 +1890,12 @@
                  style={{
                    fontSize: 26,
                    marginBottom: 5,
-                   color: "#8a7d6e",
+                   color: "#94A3B8",
                  }}
                >
                  Your canvas awaits
                </h2>
-               <p style={{ fontSize: 13, color: "#8a7d6e" }}>
+               <p style={{ fontSize: 13, color: "#94A3B8" }}>
                  Upload a painting to begin framing
                </p>
              </div>
@@ -1574,6 +1905,7 @@
                  {frame.type === "8piece" ? (
                    <EightPieceFrame
                      frameId={frame.id}
+                     piecesOverride={allPieces[frame.id]}
                      cornerW={autoCornerPx}
                      cornerH={autoCornerPx}
                      matThickness={mp}

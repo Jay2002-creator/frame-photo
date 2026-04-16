@@ -1,11 +1,17 @@
-import Frame from "../components/Frame";
-import FrameStudio from "@/components/FrameStudio";
+import LandingHero from "../components/LandingHero";
+import FrameGallery from "../components/FrameGallery";
+import FrameStudio from "../components/FrameStudio";
+import FrameShowcase from "../components/FrameShowcase";
 
 export default function Home() {
   return (
-    <div>
-    {/* <Frame/> */}
-      <FrameStudio/>
-    </div>
+    <main>
+      <LandingHero />
+      <FrameGallery />
+      <section id="studio">
+        <FrameStudio />
+      </section>
+      <FrameShowcase />
+    </main>
   );
 }
