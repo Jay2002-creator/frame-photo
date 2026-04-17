@@ -886,6 +886,7 @@
    const [tilt, setTilt] = useState({ x: 0, y: 0 });
    const [isHovering, setIsHovering] = useState(false);
    const previewRef = useRef(null);
+   const [lighting, setLighting] = useState("neutral");
 
    // Dimension dialog state
    const [pendingFile, setPendingFile] = useState(null);
@@ -1215,6 +1216,22 @@
    const visibleFrames =
      frameCat === "all" ? allFrames : allFrames.filter((f) => f.cat === frameCat);
  
+   // ── Lighting ───────────────────────────────────────────────────────────
+   const LIGHT_MODES = [
+     { id: "warm",      label: "Warm",     icon: "☀" },
+     { id: "neutral",   label: "Neutral",  icon: "○" },
+     { id: "cool",      label: "Cool",     icon: "❄" },
+     { id: "spotlight", label: "Spot",     icon: "✦" },
+   ];
+   const lightFilters = {
+     warm:      "sepia(0.28) brightness(1.12) saturate(1.22)",
+     neutral:   "",
+     cool:      "brightness(1.08) saturate(0.75) hue-rotate(22deg)",
+     spotlight: "brightness(1.28) contrast(1.1)",
+   };
+   const lightF = lightFilters[lighting] || "";
+   const dropShadow = `drop-shadow(${isHovering ? tilt.y * -1.5 : -6}px ${isHovering ? tilt.x * 1.5 : -6}px 20px rgba(99,102,241,0.08)) drop-shadow(${isHovering ? tilt.y * 2 : 10}px ${isHovering ? tilt.x * -2 : 14}px ${isHovering ? 60 : 40}px rgba(0,0,0,0.85))`;
+
    // ── Inline styles ──────────────────────────────────────────────────────
    const S = {
      root: {
@@ -1434,14 +1451,29 @@
      },
      preview: {
        flex: 1,
+       position: "relative",
        display: "flex",
        alignItems: "center",
        justifyContent: "center",
        overflow: "auto",
        padding: 60,
-       background: wall,
+       background: lighting === "warm"
+         ? `linear-gradient(rgba(255,195,80,0.11), rgba(255,195,80,0.11)), ${wall}`
+         : lighting === "cool"
+         ? `linear-gradient(rgba(105,175,255,0.11), rgba(105,175,255,0.11)), ${wall}`
+         : lighting === "spotlight"
+         ? `linear-gradient(rgba(0,0,0,0.22), rgba(0,0,0,0.22)), ${wall}`
+         : wall,
        transition: "background .5s",
      },
+     // sceneWrap: handles drop-shadow + light filter (must be SEPARATE from preserve-3d — CSS spec
+     // forbids filter + preserve-3d on the same element).
+     sceneWrap: {
+       display: "inline-block",
+       filter: [lightF, dropShadow].filter(Boolean).join(" "),
+       transition: isHovering ? "filter 0.08s linear" : "filter 0.6s ease",
+     },
+     // scene: the preserve-3d rotating stage — NO filter allowed here
      scene: {
        position: "relative",
        display: "inline-block",
@@ -1449,7 +1481,6 @@
        transform: `perspective(1200px) rotateX(${isHovering ? tilt.x : 2}deg) rotateY(${isHovering ? tilt.y : -1.5}deg) scale(${isHovering ? (zoom / 100) * 1.02 : zoom / 100})`,
        transformOrigin: "center center",
        transition: isHovering ? "transform 0.08s linear" : "transform 0.6s cubic-bezier(.22,.68,0,1.2)",
-       filter: `drop-shadow(${isHovering ? tilt.y * -1.5 : -6}px ${isHovering ? tilt.x * 1.5 : -6}px 20px rgba(99,102,241,0.08)) drop-shadow(${isHovering ? tilt.y * 2 : 10}px ${isHovering ? tilt.x * -2 : 14}px ${isHovering ? 60 : 40}px rgba(0,0,0,0.85))`,
      },
      shadow: {
        position: "absolute",
@@ -2011,6 +2042,56 @@
            }}
            onMouseLeave={() => { setIsHovering(false); setTilt({ x: 0, y: 0 }); }}
          >
+           {/* ── Lighting controls (top-right of canvas) ── */}
+           <div style={{
+             position: "absolute", top: 14, right: 14, zIndex: 20,
+             display: "flex", alignItems: "center", gap: 4,
+             background: "rgba(10,14,26,0.78)",
+             backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+             border: "1px solid rgba(255,255,255,0.1)",
+             borderRadius: 12, padding: "5px 7px",
+             boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+           }}>
+             <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", letterSpacing: "0.12em", textTransform: "uppercase", paddingRight: 4 }}>Light</span>
+             {LIGHT_MODES.map(({ id, label, icon }) => {
+               const active = lighting === id;
+               const accentMap = { warm: "#F59E0B", neutral: "#94A3B8", cool: "#38BDF8", spotlight: "#A78BFA" };
+               const accent = accentMap[id];
+               return (
+                 <button
+                   key={id}
+                   onClick={() => setLighting(id)}
+                   title={label}
+                   style={{
+                     display: "flex", alignItems: "center", gap: 4,
+                     padding: "4px 9px", borderRadius: 8, border: "none",
+                     background: active ? `${accent}22` : "transparent",
+                     color: active ? accent : "rgba(255,255,255,0.45)",
+                     fontSize: 11, fontWeight: active ? 700 : 500,
+                     cursor: "pointer", transition: "all 0.18s",
+                     outline: active ? `1px solid ${accent}55` : "none",
+                   }}
+                   onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = "rgba(255,255,255,0.75)"; }}
+                   onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = "rgba(255,255,255,0.45)"; }}
+                 >
+                   <span style={{ fontSize: 12 }}>{icon}</span>
+                   <span>{label}</span>
+                 </button>
+               );
+             })}
+           </div>
+
+           {/* ── Spotlight vignette overlay ── */}
+           {lighting === "spotlight" && (
+             <div style={{
+               position: "absolute", inset: 0, pointerEvents: "none", zIndex: 10,
+               background: [
+                 "radial-gradient(ellipse 52% 62% at 50% 46%, transparent 0%, transparent 28%, rgba(0,0,0,0.38) 62%, rgba(0,0,0,0.72) 100%)",
+                 "radial-gradient(ellipse 32% 40% at 50% 46%, rgba(255,244,210,0.22) 0%, transparent 68%)",
+               ].join(", "),
+             }} />
+           )}
+
            {!image ? (
              <div style={{ textAlign: "center", opacity: 0.33 }}>
                <h2
@@ -2028,60 +2109,70 @@
              </div>
            ) : (
              <div style={{ position: "relative", display: "inline-block" }}>
-               <div style={S.scene}>
-                 {frame.type === "8piece" ? (
-                   <EightPieceFrame
-                     frameId={frame.id}
-                     piecesOverride={allPieces[frame.id]}
-                     cornerW={autoCornerPx}
-                     cornerH={autoCornerPx}
-                     matThickness={mp}
-                     matColor={matColor}
-                     imageSrc={image}
-                     paintingW={displayW}
-                     paintingH={displayH}
-                   />
-                 ) : (
-                   <CssFrame
-                     frame={frame}
-                     matThickness={mp}
-                     matColor={matColor}
-                     imageSrc={image}
-                     paintingW={displayW}
-                     paintingH={displayH}
-                   />
-                 )}
-                 {/* 3D depth faces — hinge from each edge to show frame thickness */}
-                 {(() => {
-                   const DEPTH = 20;
-                   const ty = (isHovering ? tilt.y : -1.5) / 18; // -1..1
-                   const tx = (isHovering ? tilt.x : 2) / 18;    // -1..1
-                   const isWood = frame.type === "8piece";
-                   const mkColor = (brightness) => {
-                     const v = Math.round(Math.max(18, Math.min(110, brightness * 110)));
-                     return isWood ? `rgb(${Math.round(v*1.35)},${Math.round(v*0.82)},${Math.round(v*0.42)})` : `rgb(${v},${v},${v})`;
-                   };
-                   const lB = 0.22 + ty * 0.55;
-                   const rB = 0.22 - ty * 0.55;
-                   const tB = 0.22 - tx * 0.55;
-                   const bB = 0.22 + tx * 0.55;
-                   const face = (pos, color, dark) => ({
-                     position: "absolute",
-                     background: `linear-gradient(${pos === "left" || pos === "right" ? "to right" : "to bottom"}, ${color}, ${dark})`,
-                     ...(pos === "left"   ? { top:0, left:0,   width:DEPTH, height:"100%", transform:"rotateY(-90deg)", transformOrigin:"left center" }  : {}),
-                     ...(pos === "right"  ? { top:0, right:0,  width:DEPTH, height:"100%", transform:"rotateY(90deg)",  transformOrigin:"right center" } : {}),
-                     ...(pos === "top"    ? { top:0, left:0,   width:"100%", height:DEPTH, transform:"rotateX(90deg)",  transformOrigin:"center top" }   : {}),
-                     ...(pos === "bottom" ? { bottom:0, left:0, width:"100%", height:DEPTH, transform:"rotateX(-90deg)", transformOrigin:"center bottom" }: {}),
-                   });
-                   return (
-                     <>
-                       <div style={face("left",   mkColor(lB), "rgba(0,0,0,0.85)")} />
-                       <div style={face("right",  mkColor(rB), "rgba(0,0,0,0.85)")} />
-                       <div style={face("top",    mkColor(tB), "rgba(0,0,0,0.85)")} />
-                       <div style={face("bottom", mkColor(bB), "rgba(0,0,0,0.85)")} />
-                     </>
-                   );
-                 })()}
+               {/* sceneWrap: drop-shadow + light filter (separate from preserve-3d per CSS spec) */}
+               <div style={S.sceneWrap}>
+                 <div style={S.scene}>
+                   {/* Front face: translateZ(2px) keeps it strictly in front of the side depth faces at z=0 */}
+                   <div style={{ transform: "translateZ(2px)" }}>
+                     {frame.type === "8piece" ? (
+                       <EightPieceFrame
+                         frameId={frame.id}
+                         piecesOverride={allPieces[frame.id]}
+                         cornerW={autoCornerPx}
+                         cornerH={autoCornerPx}
+                         matThickness={mp}
+                         matColor={matColor}
+                         imageSrc={image}
+                         paintingW={displayW}
+                         paintingH={displayH}
+                       />
+                     ) : (
+                       <CssFrame
+                         frame={frame}
+                         matThickness={mp}
+                         matColor={matColor}
+                         imageSrc={image}
+                         paintingW={displayW}
+                         paintingH={displayH}
+                       />
+                     )}
+                   </div>
+                   {/* 3D depth faces — hinge from each edge to show frame thickness */}
+                   {(() => {
+                     const DEPTH = 26;
+                     const ty = (isHovering ? tilt.y : -1.5) / 18; // -1..1
+                     const tx = (isHovering ? tilt.x : 2) / 18;    // -1..1
+                     const isWood = frame.type === "8piece";
+                     const mkColor = (brightness) => {
+                       const v = Math.round(Math.max(18, Math.min(110, brightness * 110)));
+                       return isWood ? `rgb(${Math.round(v*1.35)},${Math.round(v*0.82)},${Math.round(v*0.42)})` : `rgb(${v},${v},${v})`;
+                     };
+                     const lB = 0.22 + ty * 0.55;
+                     const rB = 0.22 - ty * 0.55;
+                     const tB = 0.22 - tx * 0.55;
+                     const bB = 0.22 + tx * 0.55;
+                     // gradient: bright at the outer visible edge, dark toward back
+                     const face = (pos, color) => ({
+                       position: "absolute",
+                       background: pos === "left"   ? `linear-gradient(to left,  rgba(0,0,0,0.88), ${color})`
+                                 : pos === "right"  ? `linear-gradient(to right, rgba(0,0,0,0.88), ${color})`
+                                 : pos === "top"    ? `linear-gradient(to top,   rgba(0,0,0,0.88), ${color})`
+                                 :                   `linear-gradient(to bottom, rgba(0,0,0,0.88), ${color})`,
+                       ...(pos === "left"   ? { top:0, left:0,    width:DEPTH, height:"100%", transform:"rotateY(-90deg)",  transformOrigin:"left center"   } : {}),
+                       ...(pos === "right"  ? { top:0, right:0,   width:DEPTH, height:"100%", transform:"rotateY(90deg)",   transformOrigin:"right center"  } : {}),
+                       ...(pos === "top"    ? { top:0, left:0,    width:"100%", height:DEPTH, transform:"rotateX(90deg)",   transformOrigin:"center top"    } : {}),
+                       ...(pos === "bottom" ? { bottom:0, left:0, width:"100%", height:DEPTH, transform:"rotateX(-90deg)",  transformOrigin:"center bottom" } : {}),
+                     });
+                     return (
+                       <>
+                         <div style={face("left",   mkColor(lB))} />
+                         <div style={face("right",  mkColor(rB))} />
+                         <div style={face("top",    mkColor(tB))} />
+                         <div style={face("bottom", mkColor(bB))} />
+                       </>
+                     );
+                   })()}
+                 </div>
                </div>
                <div style={S.shadow} />
              </div>
