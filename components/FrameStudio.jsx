@@ -696,8 +696,11 @@
          cursor: "pointer",
          borderRadius: 7,
          padding: 8,
-         border: `1.5px solid ${isActive ? "#6366F1" : "#334155"}`,
-         background: isActive ? "rgba(99,102,241,0.12)" : "#1E293B",
+         border: `1.5px solid ${isActive ? "rgba(99,102,241,0.7)" : "rgba(255,255,255,0.08)"}`,
+         background: isActive ? "rgba(99,102,241,0.18)" : "rgba(255,255,255,0.04)",
+         backdropFilter: "blur(12px)",
+         WebkitBackdropFilter: "blur(12px)",
+         boxShadow: isActive ? "0 4px 20px rgba(99,102,241,0.25), inset 0 1px 0 rgba(255,255,255,0.1)" : "inset 0 1px 0 rgba(255,255,255,0.06)",
          transition: "all .2s",
          position: "relative",
        }}
@@ -1000,6 +1003,10 @@
      if (!image) return;
      const mp = matOn ? matThick : 0;
 
+     // Use the exact same dimensions the screen preview uses — avoids DOM/transform distortion
+     const cw = displayW;
+     const ch = displayH;
+
      const loadImg = (src) =>
        new Promise((res, rej) => {
          if (!src) { rej(new Error("no src")); return; }
@@ -1009,117 +1016,177 @@
          i.src = src;
        });
 
-     if (frame.type === "8piece") {
-       const centerEl = document.querySelector(".frame-center-cell");
-       if (!centerEl) return;
-       const { width: cw, height: ch } = centerEl.getBoundingClientRect();
-       const { cornerW: crnW, cornerH: crnH } = frame;
-       const totalW = Math.round(cw) + crnW * 2;
-       const totalH = Math.round(ch) + crnH * 2;
-       const pieces = allPieces[frame.id];
+     const download = (canvas) => {
+       const a = document.createElement("a");
+       a.download = "dhara-framed.png";
+       a.href = canvas.toDataURL("image/png");
+       a.click();
+     };
 
-       // Generate all 4 directional tiles — rotate topTile if others are absent
+     // Parse "0 0 0 Npx COLOR" spread layers out of a CSS box-shadow string
+     const parseShadowLayers = (shadowStr) => {
+       const parts = [];
+       let depth = 0, start = 0;
+       for (let i = 0; i < shadowStr.length; i++) {
+         if (shadowStr[i] === "(") depth++;
+         else if (shadowStr[i] === ")") depth--;
+         else if (shadowStr[i] === "," && depth === 0) {
+           parts.push(shadowStr.slice(start, i).trim());
+           start = i + 1;
+         }
+       }
+       parts.push(shadowStr.slice(start).trim());
+       return parts
+         .filter((p) => !p.startsWith("inset"))
+         .map((p) => { const m = p.match(/^0\s+0\s+0\s+([\d.]+)px\s+(.+)$/); return m ? { spread: parseFloat(m[1]), color: m[2].trim() } : null; })
+         .filter(Boolean)
+         .sort((a, b) => b.spread - a.spread);
+     };
+
+     // Tile an image to fill (x,y,w,h). repeatX=true tiles horizontally (top/bottom strips),
+     // false tiles vertically (left/right strips). The image is scaled to fill the strip thickness.
+     const tileImage = (ctx, imgEl, x, y, w, h, repeatX) => {
+       const iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
+       if (!iw || !ih) return;
+       if (repeatX) {
+         // Scale image height to h, tile in X direction
+         const scale = h / ih;
+         const scaledW = iw * scale;
+         for (let ox = 0; ox < w; ox += scaledW) {
+           const drawW = Math.min(scaledW, w - ox);
+           const srcW = drawW / scale;
+           ctx.drawImage(imgEl, 0, 0, srcW, ih, x + ox, y, drawW, h);
+         }
+       } else {
+         // Scale image width to w, tile in Y direction
+         const scale = w / iw;
+         const scaledH = ih * scale;
+         for (let oy = 0; oy < h; oy += scaledH) {
+           const drawH = Math.min(scaledH, h - oy);
+           const srcH = drawH / scale;
+           ctx.drawImage(imgEl, 0, 0, iw, srcH, x, y + oy, w, drawH);
+         }
+       }
+     };
+
+     if (frame.type === "8piece") {
+       const pieces = allPieces[frame.id];
+       if (!pieces?.topTile) return;
+
+       const crnW = autoCornerPx;
+       const crnH = autoCornerPx;
+       const totalW = cw + crnW * 2;
+       const totalH = ch + crnH * 2;
+
        const [topUrl, botUrl, leftUrl, rightUrl] = await Promise.all([
          rotateImageUrl(pieces.topTile, 0),
          pieces.bottomTile ? rotateImageUrl(pieces.bottomTile, 0) : rotateImageUrl(pieces.topTile, 180),
-         pieces.leftTile   ? rotateImageUrl(pieces.leftTile, 0)   : rotateImageUrl(pieces.topTile, -90),
-         pieces.rightTile  ? rotateImageUrl(pieces.rightTile, 0)  : rotateImageUrl(pieces.topTile, 90),
+         pieces.leftTile   ? rotateImageUrl(pieces.leftTile,   0) : rotateImageUrl(pieces.topTile, -90),
+         pieces.rightTile  ? rotateImageUrl(pieces.rightTile,  0) : rotateImageUrl(pieces.topTile,  90),
        ]);
 
        let top, bot, left, right, art;
        try {
          [top, bot, left, right, art] = await Promise.all([
-           loadImg(topUrl), loadImg(botUrl), loadImg(leftUrl), loadImg(rightUrl),
-           loadImg(image),
+           loadImg(topUrl), loadImg(botUrl), loadImg(leftUrl), loadImg(rightUrl), loadImg(image),
          ]);
-       } catch (err) {
-         console.error("Export failed loading tiles:", err);
-         return;
-       }
+       } catch (err) { console.error("Export error:", err); return; }
 
        const canvas = document.createElement("canvas");
        canvas.width = totalW;
        canvas.height = totalH;
        const ctx = canvas.getContext("2d");
 
-       const iW = Math.round(cw) - mp * 2;
-       const iH = Math.round(ch) - mp * 2;
+       // Mat background + artwork
+       const iW = cw - mp * 2, iH = ch - mp * 2;
        ctx.fillStyle = matColor;
-       ctx.fillRect(crnW, crnH, Math.round(cw), Math.round(ch));
+       ctx.fillRect(crnW, crnH, cw, ch);
        const ar = art.naturalWidth / art.naturalHeight;
        let dw = iW, dh = iH;
        if (dw / dh > ar) dw = dh * ar; else dh = dw / ar;
        ctx.drawImage(art, crnW + mp + (iW - dw) / 2, crnH + mp + (iH - dh) / 2, dw, dh);
 
-       const tileImage = (imgEl, x, y, w, h, repeatX) => {
-         const iw = imgEl.naturalWidth, ih = imgEl.naturalHeight;
-         if (repeatX) {
-           for (let ox = 0; ox < w; ox += iw) {
-             const drawW = Math.min(iw, w - ox);
-             ctx.drawImage(imgEl, 0, 0, drawW, ih, x + ox, y, drawW, h);
-           }
-         } else {
-           for (let oy = 0; oy < h; oy += ih) {
-             const drawH = Math.min(ih, h - oy);
-             ctx.drawImage(imgEl, 0, 0, iw, drawH, x, y + oy, w, drawH);
-           }
-         }
-       };
+       // Frame edges — trapezoid clip-paths matching the CSS clip-path on each strip.
+       // Draw left + right first (z-index 1 in CSS), then top + bottom on top (z-index 2).
 
+       // Left: full height at x=0, tapered to x=crnW at inner corners
        ctx.save(); ctx.beginPath();
-       ctx.moveTo(crnW, 0); ctx.lineTo(crnW, crnH); ctx.lineTo(totalW - crnW, crnH); ctx.lineTo(totalW - crnW, 0); ctx.closePath(); ctx.clip();
-       tileImage(top, 0, 0, totalW, crnH, true); ctx.restore();
+       ctx.moveTo(0, 0); ctx.lineTo(crnW, crnH); ctx.lineTo(crnW, totalH - crnH); ctx.lineTo(0, totalH);
+       ctx.closePath(); ctx.clip();
+       tileImage(ctx, left, 0, 0, crnW, totalH, false); ctx.restore();
 
+       // Right: full height at x=totalW, tapered to x=totalW-crnW at inner corners
        ctx.save(); ctx.beginPath();
-       ctx.moveTo(crnW, totalH); ctx.lineTo(crnW, totalH - crnH); ctx.lineTo(totalW - crnW, totalH - crnH); ctx.lineTo(totalW - crnW, totalH); ctx.closePath(); ctx.clip();
-       tileImage(bot, 0, totalH - crnH, totalW, crnH, true); ctx.restore();
+       ctx.moveTo(totalW, 0); ctx.lineTo(totalW - crnW, crnH); ctx.lineTo(totalW - crnW, totalH - crnH); ctx.lineTo(totalW, totalH);
+       ctx.closePath(); ctx.clip();
+       tileImage(ctx, right, totalW - crnW, 0, crnW, totalH, false); ctx.restore();
 
+       // Top: full width at y=0, tapered to (crnW..totalW-crnW) at y=crnH  ← drawn on top of left/right corners
        ctx.save(); ctx.beginPath();
-       ctx.moveTo(0, crnH); ctx.lineTo(crnW, crnH); ctx.lineTo(crnW, totalH - crnH); ctx.lineTo(0, totalH - crnH); ctx.closePath(); ctx.clip();
-       tileImage(left, 0, 0, crnW, totalH, false); ctx.restore();
+       ctx.moveTo(0, 0); ctx.lineTo(totalW, 0); ctx.lineTo(totalW - crnW, crnH); ctx.lineTo(crnW, crnH);
+       ctx.closePath(); ctx.clip();
+       tileImage(ctx, top, 0, 0, totalW, crnH, true); ctx.restore();
 
+       // Bottom: tapered at y=totalH-crnH, full width at y=totalH
        ctx.save(); ctx.beginPath();
-       ctx.moveTo(totalW, crnH); ctx.lineTo(totalW - crnW, crnH); ctx.lineTo(totalW - crnW, totalH - crnH); ctx.lineTo(totalW, totalH - crnH); ctx.closePath(); ctx.clip();
-       tileImage(right, totalW - crnW, 0, crnW, totalH, false); ctx.restore();
+       ctx.moveTo(crnW, totalH - crnH); ctx.lineTo(totalW - crnW, totalH - crnH); ctx.lineTo(totalW, totalH); ctx.lineTo(0, totalH);
+       ctx.closePath(); ctx.clip();
+       tileImage(ctx, bot, 0, totalH - crnH, totalW, crnH, true); ctx.restore();
 
-       // Draw corners if available
+       // Corner images (if the frame has them)
        if (pieces.cornerTL) {
-         const cornerImgs = await Promise.all([
+         const [ctl, ctr, cbl, cbr] = await Promise.all([
            loadImg(pieces.cornerTL).catch(() => null),
            loadImg(pieces.cornerTR || pieces.cornerTL).catch(() => null),
            loadImg(pieces.cornerBL || pieces.cornerTL).catch(() => null),
            loadImg(pieces.cornerBR || pieces.cornerTL).catch(() => null),
          ]);
-         const [ctlImg, ctrImg, cblImg, cbrImg] = cornerImgs;
-         if (ctlImg) ctx.drawImage(ctlImg, 0, 0, crnW, crnH);
-         if (ctrImg) ctx.drawImage(ctrImg, totalW - crnW, 0, crnW, crnH);
-         if (cblImg) ctx.drawImage(cblImg, 0, totalH - crnH, crnW, crnH);
-         if (cbrImg) ctx.drawImage(cbrImg, totalW - crnW, totalH - crnH, crnW, crnH);
+         if (ctl) ctx.drawImage(ctl, 0, 0, crnW, crnH);
+         if (ctr) ctx.drawImage(ctr, totalW - crnW, 0, crnW, crnH);
+         if (cbl) ctx.drawImage(cbl, 0, totalH - crnH, crnW, crnH);
+         if (cbr) ctx.drawImage(cbr, totalW - crnW, totalH - crnH, crnW, crnH);
        }
 
-       const a = document.createElement("a");
-       a.download = "dhara-framed.png";
-       a.href = canvas.toDataURL("image/png");
-       a.click();
+       download(canvas);
 
      } else {
+       // CSS frame — reconstruct the layered border from the shadow spread values
        const fw = frame.fw || 16;
        let art;
        try { art = await loadImg(image); } catch { return; }
-       const iw = art.naturalWidth, ih = art.naturalHeight, tot = mp + fw;
+
+       const layers = parseShadowLayers(frame.shadow || "");
+       const maxSpread = layers.length > 0 ? layers[0].spread : fw;
+       const totalW = cw + maxSpread * 2;
+       const totalH = ch + maxSpread * 2;
+
        const canvas = document.createElement("canvas");
-       canvas.width = iw + tot * 2;
-       canvas.height = ih + tot * 2;
+       canvas.width = totalW;
+       canvas.height = totalH;
        const ctx = canvas.getContext("2d");
+
+       // Draw each shadow ring as a filled rect, outermost first
+       for (const layer of layers) {
+         const lx = maxSpread - layer.spread;
+         const ly = maxSpread - layer.spread;
+         ctx.fillStyle = layer.color;
+         ctx.fillRect(lx, ly, cw + layer.spread * 2, ch + layer.spread * 2);
+       }
+
+       // Mat
        ctx.fillStyle = matColor;
-       ctx.fillRect(fw, fw, iw + mp * 2, ih + mp * 2);
-       ctx.drawImage(art, tot, tot, iw, ih);
-       const a = document.createElement("a");
-       a.download = "dhara-framed.png";
-       a.href = canvas.toDataURL("image/png");
-       a.click();
+       ctx.fillRect(maxSpread, maxSpread, cw, ch);
+
+       // Artwork
+       const iW = cw - mp * 2, iH = ch - mp * 2;
+       const ar = art.naturalWidth / art.naturalHeight;
+       let dw = iW, dh = iH;
+       if (dw / dh > ar) dw = dh * ar; else dh = dw / ar;
+       ctx.drawImage(art, maxSpread + mp + (iW - dw) / 2, maxSpread + mp + (iH - dh) / 2, dw, dh);
+
+       download(canvas);
      }
-   }, [image, frame, matOn, matThick, matColor, allPieces]);
+   }, [image, frame, matOn, matThick, matColor, allPieces, displayW, displayH, autoCornerPx]);
  
    const mp = matOn ? matThick : 0;
    const visibleFrames =
@@ -1128,7 +1195,7 @@
    // ── Inline styles ──────────────────────────────────────────────────────
    const S = {
      root: {
-       background: "#0F172A",
+       background: "linear-gradient(135deg, #0F172A 0%, #1a1040 50%, #0c1829 100%)",
        color: "#F1F5F9",
        height: "100vh",
        display: "flex",
@@ -1140,9 +1207,12 @@
        alignItems: "center",
        justifyContent: "space-between",
        padding: "11px 20px",
-       background: "#1E293B",
-       borderBottom: "1px solid #334155",
+       background: "rgba(15,23,42,0.72)",
+       backdropFilter: "blur(24px)",
+       WebkitBackdropFilter: "blur(24px)",
+       borderBottom: "1px solid rgba(255,255,255,0.07)",
        flexShrink: 0,
+       boxShadow: "0 1px 0 rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.3)",
      },
      logo: { display: "flex", alignItems: "center", gap: 10 },
      logoIcon: {
@@ -1160,10 +1230,13 @@
        display: "flex",
        alignItems: "center",
        gap: 3,
-       background: "#1E293B",
-       border: "1px solid #334155",
+       background: "rgba(255,255,255,0.07)",
+       backdropFilter: "blur(12px)",
+       WebkitBackdropFilter: "blur(12px)",
+       border: "1px solid rgba(255,255,255,0.12)",
        borderRadius: 7,
        padding: "3px 8px",
+       boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
      },
      zoomBtn: {
        background: "none",
@@ -1176,14 +1249,17 @@
        lineHeight: 1,
      },
      exportBtn: {
-       background: "linear-gradient(135deg,#6366F1,#4338CA)",
+       background: "linear-gradient(135deg, rgba(99,102,241,0.9), rgba(67,56,202,0.9))",
+       backdropFilter: "blur(12px)",
+       WebkitBackdropFilter: "blur(12px)",
        color: "#ffffff",
-       border: "none",
+       border: "1px solid rgba(129,140,248,0.4)",
        padding: "7px 14px",
        borderRadius: 7,
        fontSize: 11,
        fontWeight: 600,
        cursor: "pointer",
+       boxShadow: "0 4px 16px rgba(99,102,241,0.35), inset 0 1px 0 rgba(255,255,255,0.2)",
      },
      body: {
        display: "flex",
@@ -1194,24 +1270,35 @@
      sidebar: {
        width: 276,
        minWidth: 276,
-       background: "#1E293B",
-       borderRight: "1px solid #334155",
+       background: "rgba(15,23,42,0.6)",
+       backdropFilter: "blur(20px)",
+       WebkitBackdropFilter: "blur(20px)",
+       borderRight: "1px solid rgba(255,255,255,0.07)",
        display: "flex",
        flexDirection: "column",
        overflow: "hidden",
+       boxShadow: "inset -1px 0 0 rgba(255,255,255,0.04)",
      },
      sbScroll: { flex: 1, overflowY: "auto" },
      upZone: {
        margin: "13px 13px 0",
-       border: `1.5px ${isDragging || image ? "solid" : "dashed"} ${isDragging || image ? "#6366F1" : "#334155"}`,
+       border: `1.5px ${isDragging || image ? "solid" : "dashed"} ${isDragging || image ? "rgba(99,102,241,0.8)" : "rgba(255,255,255,0.12)"}`,
        borderRadius: 9,
        padding: "16px 12px",
        textAlign: "center",
        cursor: "pointer",
-       background: isDragging ? "rgba(99,102,241,0.08)" : "transparent",
+       background: isDragging ? "rgba(99,102,241,0.12)" : "rgba(255,255,255,0.03)",
+       backdropFilter: "blur(8px)",
+       WebkitBackdropFilter: "blur(8px)",
+       boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
        transition: "all .2s",
      },
-     tabs: { display: "flex", borderBottom: "1px solid #334155", marginTop: 11 },
+     tabs: {
+       display: "flex",
+       borderBottom: "1px solid rgba(255,255,255,0.07)",
+       marginTop: 11,
+       background: "rgba(255,255,255,0.03)",
+     },
      tab: (id) => ({
        flex: 1,
        padding: "9px 4px",
@@ -1312,12 +1399,15 @@
      }),
      tip: {
        padding: "11px 13px",
-       background: "rgba(99,102,241,0.08)",
-       borderTop: "1px solid #334155",
+       background: "rgba(99,102,241,0.06)",
+       backdropFilter: "blur(12px)",
+       WebkitBackdropFilter: "blur(12px)",
+       borderTop: "1px solid rgba(255,255,255,0.06)",
        fontSize: 10,
        color: "#94A3B8",
        lineHeight: 1.5,
        flexShrink: 0,
+       boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
      },
      preview: {
        flex: 1,
