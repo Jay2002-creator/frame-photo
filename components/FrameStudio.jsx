@@ -168,6 +168,16 @@
    "frame-slim": {
      topTile: "/image/frame2.png",
    },
+   // New frames — drop matching files into /public/image/
+   "f-jet-black":      { topTile: "/image/f-jet-black.png" },
+   "f-copper-wood":    { topTile: "/image/f-copper-wood.png" },
+   "f-dark-classical": { topTile: "/image/f-dark-classical.png" },
+   "f-gold-classic":   { topTile: "/image/f-gold-classic.png" },
+   "f-gray-metal":     { topTile: "/image/f-gray-metal.png" },
+   "f-walnut-dark":    { topTile: "/image/f-walnut-dark.png" },
+   "f-white-pearl":    { topTile: "/image/f-white-pearl.png" },
+   "f-gray-flat":      { topTile: "/image/f-gray-flat.png" },
+   "f-cherry-wood":    { topTile: "/image/f-cherry-wood.png" },
  };
 
  // ─── FRAME DEFINITIONS ────────────────────────────────────────────────────
@@ -436,6 +446,16 @@
      innerShadow: "inset 0 0 20px rgba(0,0,0,.6)",
      fw: 22,
    },
+   // ── New photo frames (place matching files in /public/image/) ──────────────
+   { id: "f-jet-black",     name: "Jet Black",      tag: "Modern",  cat: "modern",  type: "8piece", cornerW: 60, cornerH: 60 },
+   { id: "f-copper-wood",   name: "Copper Wood",    tag: "Ornate",  cat: "ornate",  type: "8piece", cornerW: 80, cornerH: 80 },
+   { id: "f-dark-classical",name: "Dark Classical", tag: "Ornate",  cat: "ornate",  type: "8piece", cornerW: 90, cornerH: 90 },
+   { id: "f-gold-classic",  name: "Gold Classic",   tag: "Ornate",  cat: "ornate",  type: "8piece", cornerW: 80, cornerH: 80 },
+   { id: "f-gray-metal",    name: "Gray Metal",     tag: "Modern",  cat: "modern",  type: "8piece", cornerW: 60, cornerH: 60 },
+   { id: "f-walnut-dark",   name: "Dark Walnut",    tag: "Classic", cat: "classic", type: "8piece", cornerW: 50, cornerH: 50 },
+   { id: "f-white-pearl",   name: "White Pearl",    tag: "Classic", cat: "classic", type: "8piece", cornerW: 60, cornerH: 60 },
+   { id: "f-gray-flat",     name: "Gray Flat",      tag: "Modern",  cat: "modern",  type: "8piece", cornerW: 50, cornerH: 50 },
+   { id: "f-cherry-wood",   name: "Cherry Wood",    tag: "Classic", cat: "classic", type: "8piece", cornerW: 70, cornerH: 70 },
  ];
  
  const MAT_COLORS = [
@@ -863,6 +883,9 @@
    const [zoom, setZoom] = useState(100);
    const [activeTab, setActiveTab] = useState("frames");
    const [isDragging, setIsDragging] = useState(false);
+   const [tilt, setTilt] = useState({ x: 0, y: 0 });
+   const [isHovering, setIsHovering] = useState(false);
+   const previewRef = useRef(null);
 
    // Dimension dialog state
    const [pendingFile, setPendingFile] = useState(null);
@@ -1422,10 +1445,11 @@
      scene: {
        position: "relative",
        display: "inline-block",
-       transform: `perspective(1400px) rotateX(2deg) rotateY(-1.5deg) scale(${zoom / 100})`,
+       transformStyle: "preserve-3d",
+       transform: `perspective(1200px) rotateX(${isHovering ? tilt.x : 2}deg) rotateY(${isHovering ? tilt.y : -1.5}deg) scale(${isHovering ? (zoom / 100) * 1.02 : zoom / 100})`,
        transformOrigin: "center center",
-       transition: "transform .4s cubic-bezier(.22,.68,0,1.2)",
-       filter: "drop-shadow(-6px -6px 20px rgba(99,102,241,0.08)) drop-shadow(10px 14px 40px rgba(0,0,0,0.85))",
+       transition: isHovering ? "transform 0.08s linear" : "transform 0.6s cubic-bezier(.22,.68,0,1.2)",
+       filter: `drop-shadow(${isHovering ? tilt.y * -1.5 : -6}px ${isHovering ? tilt.x * 1.5 : -6}px 20px rgba(99,102,241,0.08)) drop-shadow(${isHovering ? tilt.y * 2 : 10}px ${isHovering ? tilt.x * -2 : 14}px ${isHovering ? 60 : 40}px rgba(0,0,0,0.85))`,
      },
      shadow: {
        position: "absolute",
@@ -1973,7 +1997,20 @@
          </aside>
  
          {/* PREVIEW */}
-         <main style={S.preview}>
+         <main
+           ref={previewRef}
+           style={S.preview}
+           onMouseMove={(e) => {
+             const el = previewRef.current;
+             if (!el) return;
+             const { left, top, width, height } = el.getBoundingClientRect();
+             const x = ((e.clientX - left) / width - 0.5) * 2;   // -1 to 1
+             const y = ((e.clientY - top)  / height - 0.5) * 2;  // -1 to 1
+             setTilt({ x: -y * 18, y: x * 18 });
+             setIsHovering(true);
+           }}
+           onMouseLeave={() => { setIsHovering(false); setTilt({ x: 0, y: 0 }); }}
+         >
            {!image ? (
              <div style={{ textAlign: "center", opacity: 0.33 }}>
                <h2
@@ -2014,6 +2051,37 @@
                      paintingH={displayH}
                    />
                  )}
+                 {/* 3D depth faces — hinge from each edge to show frame thickness */}
+                 {(() => {
+                   const DEPTH = 20;
+                   const ty = (isHovering ? tilt.y : -1.5) / 18; // -1..1
+                   const tx = (isHovering ? tilt.x : 2) / 18;    // -1..1
+                   const isWood = frame.type === "8piece";
+                   const mkColor = (brightness) => {
+                     const v = Math.round(Math.max(18, Math.min(110, brightness * 110)));
+                     return isWood ? `rgb(${Math.round(v*1.35)},${Math.round(v*0.82)},${Math.round(v*0.42)})` : `rgb(${v},${v},${v})`;
+                   };
+                   const lB = 0.22 + ty * 0.55;
+                   const rB = 0.22 - ty * 0.55;
+                   const tB = 0.22 - tx * 0.55;
+                   const bB = 0.22 + tx * 0.55;
+                   const face = (pos, color, dark) => ({
+                     position: "absolute",
+                     background: `linear-gradient(${pos === "left" || pos === "right" ? "to right" : "to bottom"}, ${color}, ${dark})`,
+                     ...(pos === "left"   ? { top:0, left:0,   width:DEPTH, height:"100%", transform:"rotateY(-90deg)", transformOrigin:"left center" }  : {}),
+                     ...(pos === "right"  ? { top:0, right:0,  width:DEPTH, height:"100%", transform:"rotateY(90deg)",  transformOrigin:"right center" } : {}),
+                     ...(pos === "top"    ? { top:0, left:0,   width:"100%", height:DEPTH, transform:"rotateX(90deg)",  transformOrigin:"center top" }   : {}),
+                     ...(pos === "bottom" ? { bottom:0, left:0, width:"100%", height:DEPTH, transform:"rotateX(-90deg)", transformOrigin:"center bottom" }: {}),
+                   });
+                   return (
+                     <>
+                       <div style={face("left",   mkColor(lB), "rgba(0,0,0,0.85)")} />
+                       <div style={face("right",  mkColor(rB), "rgba(0,0,0,0.85)")} />
+                       <div style={face("top",    mkColor(tB), "rgba(0,0,0,0.85)")} />
+                       <div style={face("bottom", mkColor(bB), "rgba(0,0,0,0.85)")} />
+                     </>
+                   );
+                 })()}
                </div>
                <div style={S.shadow} />
              </div>
